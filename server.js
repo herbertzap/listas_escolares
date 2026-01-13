@@ -14,6 +14,7 @@ const chileRoutes = require('./routes/chile');
 const listasRoutes = require('./routes/listas');
 const shopifyRoutes = require('./routes/shopify');
 const authRoutes = require('./routes/auth-simple');
+const webhookRoutes = require('./routes/webhook');
 
 // Importar middleware de autenticación simple
 const { requireAuth } = require('./utils/auth-simple');
@@ -39,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Rutas públicas (no requieren autenticación)
 app.use('/auth', authRoutes);
 app.use('/api/chile', chileRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 // Rutas públicas de listas (GET) y protegidas (POST, PUT, DELETE)
 app.use('/api/listas', listasRoutes);
