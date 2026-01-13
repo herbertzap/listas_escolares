@@ -959,8 +959,11 @@ function renderProductosModal(productos) {
     
     productos.forEach(producto => {
         const hasVariants = producto.variants && producto.variants.length > 1;
-        const isSelected = productosSeleccionados.some(p => p.producto_shopify_id === producto.id);
-        const productoSeleccionado = productosSeleccionados.find(p => p.producto_shopify_id === producto.id);
+        // Verificar si hay alguna variante de este producto seleccionada
+        const productosSeleccionadosDeEste = productosSeleccionados.filter(p => p.producto_shopify_id === producto.id);
+        const isSelected = productosSeleccionadosDeEste.length > 0;
+        // Para mostrar en el select, usar la primera variante seleccionada (si hay múltiples)
+        const productoSeleccionado = productosSeleccionadosDeEste[0] || null;
         const cantidadSeleccionada = productoSeleccionado?.cantidad || 1;
         const variantIdSeleccionado = productoSeleccionado?.variant_id || null;
         
@@ -1005,15 +1008,18 @@ function renderProductosModal(productos) {
                     ${hasVariants && isSelected && variantIdSeleccionado ? 
                         `$${productoSeleccionado.precio || producto.price}` : 
                         `$${producto.price}`}
+                    ${productosSeleccionadosDeEste.length > 1 ? 
+                        `<br><small class="text-info"><i class="fas fa-info-circle"></i> ${productosSeleccionadosDeEste.length} variantes seleccionadas</small>` : ''}
                 </td>
                 <td>
                     ${hasVariants ? variantSelector : '<span class="badge bg-success">Disponible</span>'}
                 </td>
                 <td>
-                    ${isSelected ? `
+                    ${isSelected && productoSeleccionado ? `
                         <input type="number" class="form-control form-control-sm" 
                                value="${cantidadSeleccionada}"
-                               min="1" style="width: 80px;" onchange="actualizarCantidad(${producto.id}, this.value)">
+                               min="1" style="width: 80px;" 
+                               onchange="actualizarCantidad(${producto.id}, this.value, ${productoSeleccionado.variant_id !== null && productoSeleccionado.variant_id !== undefined ? productoSeleccionado.variant_id : 'null'})">
                     ` : '-'}
                 </td>
             </tr>
@@ -1031,22 +1037,25 @@ function renderProductosModal(productos) {
 
 // Toggle producto seleccionado
 function toggleProductoSeleccionado(id, title, price, hasVariants = false) {
-    const index = productosSeleccionados.findIndex(p => p.producto_shopify_id === id);
+    // Si tiene variantes, requerir selección de variante
+    if (hasVariants) {
+        mostrarNotificacion('Por favor selecciona una variante del producto antes de agregarlo', 'warning');
+        // Desmarcar el checkbox
+        const checkbox = document.getElementById(`producto-${id}`);
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+        return;
+    }
+    
+    // Para productos sin variantes, buscar por producto_shopify_id y variant_id null
+    const index = productosSeleccionados.findIndex(p => 
+        p.producto_shopify_id === id && (p.variant_id === null || p.variant_id === undefined)
+    );
     
     if (index > -1) {
         productosSeleccionados.splice(index, 1);
     } else {
-        // Si tiene variantes, requerir selección de variante
-        if (hasVariants) {
-            mostrarNotificacion('Por favor selecciona una variante del producto antes de agregarlo', 'warning');
-            // Desmarcar el checkbox
-            const checkbox = document.getElementById(`producto-${id}`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-            return;
-        }
-        
         productosSeleccionados.push({
             producto_shopify_id: id,
             variant_id: null,
@@ -1067,15 +1076,8 @@ function toggleProductoSeleccionado(id, title, price, hasVariants = false) {
 // Actualizar variante seleccionada
 function actualizarVariantSeleccionado(productoId, variantId) {
     if (!variantId || variantId === '') {
-        // Si se deselecciona la variante, quitar el producto de la selección
-        const index = productosSeleccionados.findIndex(p => p.producto_shopify_id === productoId);
-        if (index > -1) {
-            productosSeleccionados.splice(index, 1);
-            const checkbox = document.getElementById(`producto-${productoId}`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-        }
+        // Si se deselecciona la variante, no hacer nada (permitir que otras variantes sigan seleccionadas)
+        // Solo actualizar la interfaz
         actualizarProductosSeleccionados();
         cargarProductosModal(document.getElementById('searchProductosModal')?.value || '');
         return;
@@ -1099,19 +1101,22 @@ function actualizarVariantSeleccionado(productoId, variantId) {
     
     const variantPrice = parseFloat(option.dataset.price) || 0;
     const variantTitle = option.textContent.split(' - ')[0];
+    const variantIdNum = parseInt(variantId);
     
-    // Buscar el producto en productosSeleccionados
-    let producto = productosSeleccionados.find(p => p.producto_shopify_id === productoId);
+    // Buscar el producto con esta combinación específica de producto_shopify_id Y variant_id
+    let producto = productosSeleccionados.find(p => 
+        p.producto_shopify_id === productoId && p.variant_id === variantIdNum
+    );
     
     if (!producto) {
-        // Si el producto no está seleccionado, agregarlo
+        // Si no existe esta combinación, agregar como nuevo producto (permitir múltiples variantes del mismo producto)
         // Necesitamos obtener el título del producto desde el DOM
         const productoTitleElement = productoRow.querySelector('td:nth-child(3) strong');
         const productoTitle = productoTitleElement?.textContent || 'Producto';
         
         producto = {
             producto_shopify_id: productoId,
-            variant_id: parseInt(variantId),
+            variant_id: variantIdNum,
             nombre_producto: `${productoTitle} - ${variantTitle}`,
             precio: variantPrice,
             cantidad: 1,
@@ -1124,16 +1129,20 @@ function actualizarVariantSeleccionado(productoId, variantId) {
         if (checkbox) {
             checkbox.checked = true;
         }
+        
+        console.log('✅ Nueva variante agregada (mismo producto, diferente variante):', {
+            producto_shopify_id: producto.producto_shopify_id,
+            variant_id: producto.variant_id,
+            nombre_producto: producto.nombre_producto
+        });
     } else {
-        // Actualizar la variante del producto existente
-        producto.variant_id = parseInt(variantId);
+        // Si ya existe esta combinación exacta, actualizar precio y nombre (por si cambió)
         producto.precio = variantPrice;
-        // Actualizar nombre del producto con la variante seleccionada
         const productoTitleElement = productoRow.querySelector('td:nth-child(3) strong');
         const productoTitle = productoTitleElement?.textContent || producto.nombre_producto.split(' - ')[0];
         producto.nombre_producto = `${productoTitle} - ${variantTitle}`;
         
-        console.log('✅ Variante actualizada en producto existente:', {
+        console.log('✅ Variante existente actualizada:', {
             producto_shopify_id: producto.producto_shopify_id,
             variant_id: producto.variant_id,
             nombre_producto: producto.nombre_producto
@@ -1147,9 +1156,17 @@ function actualizarVariantSeleccionado(productoId, variantId) {
     cargarProductosModal(document.getElementById('searchProductosModal')?.value || '');
 }
 
-// Actualizar cantidad
-function actualizarCantidad(id, cantidad) {
-    const producto = productosSeleccionados.find(p => p.producto_shopify_id === id);
+// Actualizar cantidad - ahora recibe también variant_id para identificar correctamente el producto
+function actualizarCantidad(id, cantidad, variantId = null) {
+    // Buscar por producto_shopify_id y variant_id (si se proporciona)
+    const producto = productosSeleccionados.find(p => {
+        if (variantId !== null && variantId !== undefined) {
+            return p.producto_shopify_id === id && p.variant_id === parseInt(variantId);
+        } else {
+            return p.producto_shopify_id === id && (p.variant_id === null || p.variant_id === undefined);
+        }
+    });
+    
     if (producto) {
         producto.cantidad = parseInt(cantidad);
     }
@@ -1193,21 +1210,24 @@ function actualizarProductosSeleccionados() {
     
     productosSeleccionados.forEach((producto, index) => {
         const total = producto.precio * producto.cantidad;
+        const variantIdParam = producto.variant_id !== null && producto.variant_id !== undefined 
+            ? producto.variant_id 
+            : 'null';
         html += `
             <tr>
                 <td>
                     <strong>${producto.nombre_producto}</strong><br>
-                    <small class="text-muted">ID: ${producto.producto_shopify_id}</small>
+                    <small class="text-muted">ID: ${producto.producto_shopify_id}${producto.variant_id ? ` | Variante: ${producto.variant_id}` : ''}</small>
                 </td>
                 <td>$${producto.precio}</td>
                 <td>
                     <input type="number" class="form-control form-control-sm" 
                            value="${producto.cantidad}" min="1" style="width: 80px;" 
-                           onchange="actualizarCantidad(${producto.producto_shopify_id}, this.value)">
+                           onchange="actualizarCantidad(${producto.producto_shopify_id}, this.value, ${variantIdParam})">
                 </td>
                 <td>$${total}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-danger" onclick="removerProductoSeleccionado(${producto.producto_shopify_id})">
+                    <button class="btn btn-sm btn-outline-danger" onclick="removerProductoSeleccionado(${producto.producto_shopify_id}, ${variantIdParam})">
                         <i class="fas fa-times"></i>
                     </button>
                 </td>
@@ -1224,13 +1244,30 @@ function actualizarProductosSeleccionados() {
     container.innerHTML = html;
 }
 
-// Remover producto seleccionado
-function removerProductoSeleccionado(id) {
-    const index = productosSeleccionados.findIndex(p => p.producto_shopify_id === id);
+// Remover producto seleccionado - ahora recibe también variant_id para identificar correctamente
+function removerProductoSeleccionado(id, variantId = null) {
+    // Buscar por producto_shopify_id y variant_id (si se proporciona)
+    const index = productosSeleccionados.findIndex(p => {
+        if (variantId !== null && variantId !== undefined) {
+            return p.producto_shopify_id === id && p.variant_id === parseInt(variantId);
+        } else {
+            return p.producto_shopify_id === id && (p.variant_id === null || p.variant_id === undefined);
+        }
+    });
+    
     if (index > -1) {
         productosSeleccionados.splice(index, 1);
         actualizarProductosSeleccionados();
         cargarProductosModal(document.getElementById('searchProductosModal')?.value || '');
+        
+        // Si el producto tiene variantes, desmarcar el checkbox solo si no quedan más variantes seleccionadas
+        const quedanVariantes = productosSeleccionados.some(p => p.producto_shopify_id === id);
+        if (!quedanVariantes) {
+            const checkbox = document.getElementById(`producto-${id}`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+        }
     }
 }
 
