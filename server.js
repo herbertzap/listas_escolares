@@ -34,6 +34,17 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Middleware para configurar headers de seguridad para iframes
+app.use((req, res, next) => {
+  // Remover X-Frame-Options si existe (CSP es más moderno y flexible)
+  res.removeHeader('X-Frame-Options');
+  
+  // Configurar Content-Security-Policy para permitir iframe desde bichoto.cl
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://bichoto.cl https://www.bichoto.cl");
+  
+  next();
+});
+
 // Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
