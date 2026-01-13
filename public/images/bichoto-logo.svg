@@ -1,0 +1,41 @@
+<svg width="200" height="120" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo -->
+  <rect width="200" height="120" fill="#F8F9FA"/>
+  
+  <!-- Logo Bichoto con colores descritos -->
+  <g transform="translate(50, 30)">
+    <!-- Letra 'b' - deep red/magenta -->
+    <text x="0" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#8B0000">b</text>
+    
+    <!-- Letra 'i' - dark green -->
+    <text x="15" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#006400">i</text>
+    
+    <!-- Letra 'c' - bright red -->
+    <text x="25" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FF0000">c</text>
+    
+    <!-- Letra 'h' - medium blue -->
+    <text x="40" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#4169E1">h</text>
+    
+    <!-- Primera 'o' - dark green -->
+    <text x="55" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#006400">o</text>
+    
+    <!-- Letra 't' - bright yellow -->
+    <text x="70" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FFD700">t</text>
+    
+    <!-- Última 'o' - light blue circular face -->
+    <circle cx="85" cy="18" r="12" fill="#87CEEB"/>
+    <!-- Ojos -->
+    <circle cx="82" cy="15" r="2" fill="#000000"/>
+    <circle cx="88" cy="15" r="2" fill="#000000"/>
+    <!-- Sonrisa -->
+    <path d="M 80 20 Q 85 25 90 20" stroke="#000000" stroke-width="1.5" fill="none"/>
+    <!-- Pelo/aura -->
+    <path d="M 75 8 Q 80 5 85 8" stroke="#87CEEB" stroke-width="2" fill="none"/>
+    <path d="M 85 8 Q 90 5 95 8" stroke="#87CEEB" stroke-width="2" fill="none"/>
+    <path d="M 75 10 Q 80 7 85 10" stroke="#87CEEB" stroke-width="2" fill="none"/>
+    <path d="M 85 10 Q 90 7 95 10" stroke="#87CEEB" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- Texto "Sin imagen" -->
+  <text x="100" y="100" text-anchor="middle" fill="#999999" font-family="Arial, sans-serif" font-size="12">Sin imagen</text>
+</svg>

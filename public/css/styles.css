@@ -1,0 +1,726 @@
+/* Estilos personalizados para el sistema de listas escolares */
+
+:root {
+    --primary-color: rgba(23 10 54 / 1.0);
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --info-color: #0dcaf0;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Navbar personalizado */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    transform: translateY(-2px);
+}
+
+/* Cards personalizadas */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background: var(--primary-color);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Botones personalizados */
+.btn {
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary {
+    background: var(--primary-color);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color), #146c43);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning-color), #e0a800);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger-color), #b02a37);
+}
+
+/* Producto cards */
+.producto-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    height: 100%;
+    position: relative;
+}
+
+.producto-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.producto-card .producto-imagen-container {
+    position: relative;
+    width: 100%;
+    height: 120px;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+
+.producto-card .producto-imagen {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.producto-card .producto-imagen.loaded {
+    opacity: 1;
+}
+
+.producto-card .producto-imagen.error {
+    opacity: 1;
+    /* Mantener la imagen SVG por defecto */
+}
+
+.producto-card .producto-titulo {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: var(--dark-color);
+}
+
+.producto-card .producto-precio {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success-color);
+    margin-bottom: 0.5rem;
+}
+
+.producto-card .producto-stock {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+.producto-card .producto-codigo {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+/* Lista cards */
+.lista-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    height: 100%;
+    border-left: 5px solid var(--primary-color);
+}
+
+.lista-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.lista-card .lista-titulo {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.lista-card .lista-info {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.lista-card .lista-acciones {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Formularios */
+.form-control {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-select {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+}
+
+/* Modales */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    color: white;
+    border-radius: 15px 15px 0 0;
+    border: none;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+/* Alertas */
+.alert {
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+}
+
+/* Badges */
+.badge {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Loading spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .lista-card {
+        padding: 1rem;
+    }
+    
+    .producto-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Animaciones */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Checkbox personalizado */
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+/* Estados de carga */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Tooltips personalizados */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip-inner {
+    background-color: var(--dark-color);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Producto seleccionado */
+.producto-seleccionado {
+    border: 3px solid var(--success-color);
+    background-color: #f8fff9;
+}
+
+.producto-seleccionado::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--success-color);
+    color: white;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* Autocompletado */
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item.selected {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.suggestion-item .suggestion-text {
+    font-weight: 500;
+}
+
+.suggestion-item .suggestion-subtext {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.suggestion-item.selected .suggestion-subtext {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Estilos para el input con autocompletado */
+.autocomplete-input {
+    position: relative;
+}
+
+.autocomplete-input:focus-within .suggestions-dropdown {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 6px rgba(13, 110, 253, 0.25);
+}
+
+/* Estilos para sugerencias de colegios */
+.colegio-sugerencia:hover {
+    background-color: #e9ecef !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.colegio-sugerencia {
+    border: 1px solid #dee2e6 !important;
+}
+
+.colegio-sugerencia:hover {
+    border-color: var(--primary-color) !important;
+}
+
+/* Estilos para campos en modo solo lectura */
+.form-control[readonly] {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.form-control[readonly]:focus {
+    box-shadow: none;
+    border-color: #dee2e6;
+}
+
+/* Estilos para la tabla de productos en el modal */
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.table th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.table tfoot {
+    position: sticky;
+    bottom: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    border-top: 2px solid #dee2e6;
+}
+
+/* Estilos para imágenes de productos */
+.img-thumbnail {
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s;
+}
+
+.img-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+/* Estilos para el modal extra grande */
+.modal-xl {
+    max-width: 95%;
+}
+
+@media (min-width: 1200px) {
+    .modal-xl {
+        max-width: 1140px;
+    }
+}
+
+/* Estilos para el visor de imágenes */
+#imageViewerModal .modal-dialog {
+    max-width: 90%;
+    max-height: 90vh;
+}
+
+#imageViewerModal .modal-content {
+    background-color: rgba(0, 0, 0, 0.9);
+    border: none;
+    border-radius: 8px;
+}
+
+#imageViewerModal .modal-header {
+    background: transparent;
+}
+
+#imageViewerModal .btn-close {
+    filter: invert(1);
+    opacity: 0.8;
+}
+
+#imageViewerModal .btn-close:hover {
+    opacity: 1;
+}
+
+#imageViewerImg {
+    max-height: 70vh;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+/* Cursor pointer para imágenes clickeables */
+.producto-imagen-clickeable {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.producto-imagen-clickeable:hover {
+    transform: scale(1.05);
+}
+
+/* Overlay para indicar que es clickeable */
+.producto-imagen-container {
+    position: relative;
+    display: inline-block;
+}
+
+.producto-imagen-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 4px;
+}
+
+.producto-imagen-container:hover .producto-imagen-overlay {
+    opacity: 1;
+}
+
+.producto-imagen-overlay i {
+    color: white;
+    font-size: 1.2rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Estilos para advertencias de stock */
+.stock-warning {
+    margin-top: 5px;
+    padding: 4px 8px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.stock-warning small {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilos para badges de disponibilidad */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5em 0.75em;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Estilos para spinner de verificación */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.125em;
+}
+
+/* Estilos para autocompletado de colegios */
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.autocomplete-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s;
+}
+
+.autocomplete-item:hover {
+    background-color: #f8f9fa;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item .colegio-nombre {
+    font-weight: 500;
+    color: #333;
+}
+
+.autocomplete-item .colegio-info {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* Contenedor relativo para el input de colegio */
+.colegio-input-container {
+    position: relative;
+}
+
+/* Estilos para tarjetas de productos en vista cliente */
+.card .img-thumbnail {
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s ease;
+}
+
+.card .img-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+.stock-status {
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.stock-status small {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Animación para el spinner de verificación */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Estilos para badges de cantidad */
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+/* Estilos para precios */
+.text-primary {
+    color: #0d6efd !important;
+}
+
+.text-success {
+    color: #198754 !important;
+}
+
+.fw-bold {
+    font-weight: 700 !important;
+}
