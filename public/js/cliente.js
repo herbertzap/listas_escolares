@@ -306,17 +306,18 @@ async function agregarProductoALista(productoId, nombre, precio, imagen, sku, va
                 listaPersonalizada.productos.push(nuevoProducto);
             }
             
-            // Limpiar variante seleccionada
-            delete variantesSeleccionadas[productoId];
+            // NO limpiar la variante seleccionada para permitir agregar múltiples variantes del mismo producto
+            // La variante se mantiene seleccionada para facilitar agregar más del mismo producto o cambiar a otra variante
             
             // Actualizar la vista del modal
             mostrarModalListaPersonalizada(listaPersonalizada);
             
-            // Ocultar buscador
-            ocultarBuscadorProductos();
+            // NO ocultar el buscador para permitir seguir agregando productos
+            // ocultarBuscadorProductos();
             
-            mostrarNotificacion(`Producto agregado: ${nombreFinal}`, 'success');
+            mostrarNotificacion(`✅ Producto agregado: ${nombreFinal}`, 'success');
             console.log('✅ Producto agregado exitosamente a la base de datos con variant_id:', variantIdFinal);
+            console.log('💡 Puedes agregar otra variante del mismo producto o cambiar la variante seleccionada');
         } else {
             mostrarNotificacion('Error agregando producto: ' + data.error, 'error');
         }
@@ -496,17 +497,17 @@ function renderProductosListaPersonalizada(productos) {
                 <td>
                     <div class="input-group input-group-sm" style="width: 120px;">
                         <button class="btn btn-outline-secondary" type="button" 
-                                onclick="cambiarCantidadProducto('${producto.producto_shopify_id}', -1)">
+                                onclick="cambiarCantidadProducto('${producto.producto_shopify_id}', -1, '${producto.variant_id || ''}')">
                             <i class="fas fa-minus"></i>
                         </button>
                         <input type="number" class="form-control text-center" 
                                value="${cantidad}" min="1" max="99" 
                                data-producto-id="${producto.producto_shopify_id}"
                                data-variant-id="${producto.variant_id || ''}"
-                               id="cantidad-${producto.producto_shopify_id}"
-                               onchange="actualizarCantidadProducto('${producto.producto_shopify_id}', this.value)">
+                               id="cantidad-${producto.producto_shopify_id}-${producto.variant_id || 'null'}"
+                               onchange="actualizarCantidadProducto('${producto.producto_shopify_id}', this.value, '${producto.variant_id || ''}')">
                         <button class="btn btn-outline-secondary" type="button" 
-                                onclick="cambiarCantidadProducto('${producto.producto_shopify_id}', 1)">
+                                onclick="cambiarCantidadProducto('${producto.producto_shopify_id}', 1, '${producto.variant_id || ''}')">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -514,7 +515,7 @@ function renderProductosListaPersonalizada(productos) {
                 <td><strong>$${total.toLocaleString()}</strong></td>
                 <td>
                     <button type="button" class="btn btn-danger btn-sm" 
-                            onclick="eliminarProductoDeLista('${producto.producto_shopify_id}')"
+                            onclick="eliminarProductoDeLista('${producto.producto_shopify_id}', '${producto.variant_id || ''}')"
                             title="Eliminar producto">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -548,19 +549,29 @@ function renderProductosListaPersonalizada(productos) {
     container.innerHTML = html;
 }
 
-// Cambiar cantidad de producto
-async function cambiarCantidadProducto(productoId, delta) {
+// Cambiar cantidad de producto - ahora recibe también variant_id para identificar correctamente
+async function cambiarCantidadProducto(productoId, delta, variantId = '') {
     if (!currentListaId) {
         mostrarNotificacion('Error: No hay lista seleccionada', 'error');
         return;
     }
     
     try {
-        // Obtener la cantidad actual del producto desde el DOM
-        const cantidadInput = document.querySelector(`input[onchange*="${productoId}"]`);
+        // Buscar el input específico por producto_shopify_id y variant_id
+        const variantIdStr = variantId || 'null';
+        const cantidadInput = document.getElementById(`cantidad-${productoId}-${variantIdStr}`);
         if (!cantidadInput) {
-            mostrarNotificacion('Error: No se pudo encontrar el producto o no es editable', 'error');
-            return;
+            // Fallback: buscar por data attributes
+            const inputs = document.querySelectorAll(`input[data-producto-id="${productoId}"]`);
+            const input = Array.from(inputs).find(inp => {
+                const inputVariantId = inp.getAttribute('data-variant-id') || '';
+                return (variantId === '' && inputVariantId === '') || inputVariantId === variantId;
+            });
+            if (!input) {
+                mostrarNotificacion('Error: No se pudo encontrar el producto o no es editable', 'error');
+                return;
+            }
+            cantidadInput = input;
         }
         
         // Verificar que el producto sea editable (todos los productos en lista personalizada son editables)
@@ -577,14 +588,18 @@ async function cambiarCantidadProducto(productoId, delta) {
         
         // Solo actualizar si la cantidad cambió
         if (nuevaCantidad !== cantidadActual) {
+            // Enviar variant_id si está disponible
+            const body = { cantidad: nuevaCantidad };
+            if (variantId && variantId !== '') {
+                body.variant_id = variantId;
+            }
+            
             const response = await fetch(`/api/listas/personalizada/${currentListaId}/producto/${productoId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    cantidad: nuevaCantidad
-                })
+                body: JSON.stringify(body)
             });
             
             const data = await response.json();
@@ -619,15 +634,24 @@ async function cambiarCantidadProducto(productoId, delta) {
     }
 }
 
-// Actualizar cantidad de producto (desde input)
-function actualizarCantidadProducto(productoId, nuevaCantidad) {
+// Actualizar cantidad de producto (desde input) - ahora recibe también variant_id
+function actualizarCantidadProducto(productoId, nuevaCantidad, variantId = '') {
     const cantidad = parseInt(nuevaCantidad);
     if (cantidad >= 1 && cantidad <= 99) {
-        // Obtener cantidad actual desde el DOM
-        const cantidadInput = document.querySelector(`input[onchange*="${productoId}"]`);
+        // Obtener cantidad actual desde el DOM usando variant_id si está disponible
+        const variantIdStr = variantId || 'null';
+        let cantidadInput = document.getElementById(`cantidad-${productoId}-${variantIdStr}`);
+        if (!cantidadInput) {
+            // Fallback: buscar por data attributes
+            const inputs = document.querySelectorAll(`input[data-producto-id="${productoId}"]`);
+            cantidadInput = Array.from(inputs).find(inp => {
+                const inputVariantId = inp.getAttribute('data-variant-id') || '';
+                return (variantId === '' && inputVariantId === '') || inputVariantId === variantId;
+            });
+        }
         if (cantidadInput) {
             const cantidadActual = parseInt(cantidadInput.value) || 1;
-            cambiarCantidadProducto(productoId, cantidad - cantidadActual);
+            cambiarCantidadProducto(productoId, cantidad - cantidadActual, variantId);
         }
     }
 }
@@ -680,15 +704,26 @@ function mostrarInfoProductosEditables() {
     alert(mensaje);
 }
 
-// Eliminar producto de la lista personalizada
-async function eliminarProductoDeLista(productoId) {
+// Eliminar producto de la lista personalizada - ahora recibe también variant_id
+async function eliminarProductoDeLista(productoId, variantId = '') {
     if (!currentListaId) {
         mostrarNotificacion('Error: No hay lista seleccionada', 'error');
         return;
     }
     
-    // Obtener nombre del producto desde el DOM
-    const row = document.querySelector(`input[onchange*="${productoId}"]`)?.closest('tr');
+    // Buscar la fila específica por producto_shopify_id y variant_id
+    const variantIdStr = variantId || 'null';
+    let cantidadInput = document.getElementById(`cantidad-${productoId}-${variantIdStr}`);
+    if (!cantidadInput) {
+        // Fallback: buscar por data attributes
+        const inputs = document.querySelectorAll(`input[data-producto-id="${productoId}"]`);
+        cantidadInput = Array.from(inputs).find(inp => {
+            const inputVariantId = inp.getAttribute('data-variant-id') || '';
+            return (variantId === '' && inputVariantId === '') || inputVariantId === variantId;
+        });
+    }
+    
+    const row = cantidadInput?.closest('tr');
     if (!row) {
         mostrarNotificacion('Error: No se pudo encontrar el producto o no es editable', 'error');
         return;
@@ -708,7 +743,13 @@ async function eliminarProductoDeLista(productoId) {
     
     if (confirm(mensajeConfirmacion)) {
         try {
-            const response = await fetch(`/api/listas/personalizada/${currentListaId}/producto/${productoId}`, {
+            // Incluir variant_id en la URL si está disponible
+            let url = `/api/listas/personalizada/${currentListaId}/producto/${productoId}`;
+            if (variantId && variantId !== '') {
+                url += `?variant_id=${variantId}`;
+            }
+            
+            const response = await fetch(url, {
                 method: 'DELETE'
             });
             
