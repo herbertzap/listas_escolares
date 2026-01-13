@@ -1,0 +1,16 @@
+# Configuración de Apache para listas.bichoto.cl
+
+# Habilitar mod_headers si no está habilitado
+<IfModule mod_headers.c>
+    # Configurar Content-Security-Policy para permitir iframe desde bichoto.cl
+    Header set Content-Security-Policy "frame-ancestors 'self' https://bichoto.cl"
+    
+    # Remover o comentar X-Frame-Options si existe (CSP lo reemplaza)
+    # Header unset X-Frame-Options
+</IfModule>
+
+# Si mod_headers no está disponible, mostrar advertencia
+<IfModule !mod_headers.c>
+    # Advertencia: mod_headers no está habilitado
+    # Ejecuta: sudo a2enmod headers && sudo systemctl restart apache2
+</IfModule>
