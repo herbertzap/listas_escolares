@@ -519,28 +519,18 @@ router.post('/carrito/lista/:listaId', async (req, res) => {
       }
     }
 
-    // Generar URL del carrito
-    let carritoUrl = null;
-    if (itemsCarrito.length > 0) {
-      try {
-        const baseUrl = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
-        const cartItems = itemsCarrito.map(item => `${item.variant_id}:${item.quantity}`).join(',');
-        carritoUrl = `https://${baseUrl}.myshopify.com/cart/${cartItems}`;
-        console.log(`🛒 URL de carrito generada: ${carritoUrl}`);
-      } catch (error) {
-        console.error('❌ Error generando URL de carrito:', error);
-        return res.status(500).json({
-          success: false,
-          error: 'Error generando URL de carrito',
-          details: error.message
-        });
-      }
-    }
+    // Retornar items para agregar al carrito (el frontend los agregará usando la API de Cart)
+    // Esto permite que las cookies se compartan correctamente entre dominios
+    const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
+    const cartUrl = `https://${shopDomain}.myshopify.com/cart`;
+    const storefrontUrl = `https://${shopDomain}.myshopify.com`;
 
     res.json({
       success: true,
       data: {
-        carrito_url: carritoUrl,
+        items: itemsCarrito, // Items para agregar al carrito
+        cart_url: cartUrl, // URL del carrito para redirección
+        storefront_url: storefrontUrl, // URL de la tienda para API de Cart
         productos_agregados: itemsCarrito.length,
         productos_sin_stock: productosSinStock,
         total_productos_lista: productosLista.length
@@ -787,28 +777,18 @@ router.post('/carrito/personalizado', async (req, res) => {
       }
     }
 
-    // Generar URL del carrito
-    let carritoUrl = null;
-    if (itemsCarrito.length > 0) {
-      try {
-        const baseUrl = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
-        const cartItems = itemsCarrito.map(item => `${item.variant_id}:${item.quantity}`).join(',');
-        carritoUrl = `https://${baseUrl}.myshopify.com/cart/${cartItems}`;
-        console.log(`🛒 URL de carrito generada: ${carritoUrl}`);
-      } catch (error) {
-        console.error('❌ Error generando URL de carrito:', error);
-        return res.status(500).json({
-          success: false,
-          error: 'Error generando URL de carrito',
-          details: error.message
-        });
-      }
-    }
+    // Retornar items para agregar al carrito (el frontend los agregará usando la API de Cart)
+    // Esto permite que las cookies se compartan correctamente entre dominios
+    const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
+    const cartUrl = `https://${shopDomain}.myshopify.com/cart`;
+    const storefrontUrl = `https://${shopDomain}.myshopify.com`;
 
     res.json({
       success: true,
       data: {
-        carrito_url: carritoUrl,
+        items: itemsCarrito, // Items para agregar al carrito
+        cart_url: cartUrl, // URL del carrito para redirección
+        storefront_url: storefrontUrl, // URL de la tienda para API de Cart
         productos_agregados: itemsCarrito.length,
         productos_sin_stock: productosSinStock,
         total_productos_solicitados: productos.length

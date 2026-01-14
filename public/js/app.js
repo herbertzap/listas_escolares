@@ -1242,47 +1242,85 @@ async function cargarListaAlCarrito() {
         
         const carritoData = await carritoResponse.json();
         
-        if (carritoData.success) {
+        if (carritoData.success && carritoData.data.items && carritoData.data.items.length > 0) {
             const productosAgregados = carritoData.data.productos_agregados;
             const productosSinStock = carritoData.data.productos_sin_stock || [];
             const totalProductos = productos.length;
             
-            let mensaje = `✅ ${productosAgregados} de ${totalProductos} productos agregados al carrito!`;
+            // Agregar productos al carrito usando la API de Cart de Shopify
+            const storefrontUrl = carritoData.data.storefront_url || 'https://bichoto.myshopify.com';
+            const cartUrl = carritoData.data.cart_url || 'https://bichoto.myshopify.com/cart';
             
-            // Si hay productos sin stock, mostrar información adicional
-            if (productosSinStock.length > 0) {
-                mensaje += `\n\n⚠️ ${productosSinStock.length} productos no se pudieron agregar:`;
-                productosSinStock.forEach(producto => {
-                    if (producto.title.includes('Producto no existe') || producto.title.includes('no encontrado')) {
-                        mensaje += `\n• ID ${producto.id}: ${producto.title}`;
-                    } else {
-                        mensaje += `\n• ${producto.title}: ${producto.cantidad_solicitada} solicitados, ${producto.stock_disponible} disponibles`;
-                    }
+            try {
+                // Agregar productos al carrito usando la API de Cart de Shopify
+                // Esta API respeta las cookies automáticamente
+                const addToCartResponse = await fetch(`${storefrontUrl}/cart/add.js`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // Importante: incluir cookies
+                    body: JSON.stringify({
+                        items: carritoData.data.items
+                    })
                 });
+                
+                if (addToCartResponse.ok) {
+                    const cartData = await addToCartResponse.json();
+                    console.log('✅ Productos agregados al carrito:', cartData);
+                    
+                    // Refrescar el carrito para asegurar sincronización
+                    await fetch(`${storefrontUrl}/cart.js`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    
+                    let mensaje = `✅ ${productosAgregados} de ${totalProductos} productos agregados al carrito!`;
+                    
+                    // Si hay productos sin stock, mostrar información adicional
+                    if (productosSinStock.length > 0) {
+                        mensaje += `\n\n⚠️ ${productosSinStock.length} productos no se pudieron agregar:`;
+                        productosSinStock.forEach(producto => {
+                            if (producto.title.includes('Producto no existe') || producto.title.includes('no encontrado')) {
+                                mensaje += `\n• ID ${producto.id}: ${producto.title}`;
+                            } else {
+                                mensaje += `\n• ${producto.title}: ${producto.cantidad_solicitada} solicitados, ${producto.stock_disponible} disponibles`;
+                            }
+                        });
+                    }
+                    
+                    // Mostrar mensaje detallado
+                    if (productosSinStock.length > 0) {
+                        showWarning(mensaje);
+                    } else {
+                        showSuccess(mensaje);
+                    }
+                    
+                    // Cerrar el modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('viewListModal'));
+                    if (modal) modal.hide();
+                    
+                    // Abrir carrito en nueva pestaña después de un breve delay
+                    setTimeout(() => {
+                        window.open(cartUrl, '_blank');
+                    }, 500);
+                } else {
+                    const errorData = await addToCartResponse.json();
+                    console.error('❌ Error agregando al carrito:', errorData);
+                    throw new Error(errorData.description || 'Error agregando productos al carrito');
+                }
+            } catch (cartError) {
+                console.error('❌ Error en API de Cart:', cartError);
+                // Fallback: usar URL directa del carrito
+                showWarning('⚠️ Usando método alternativo para agregar productos...');
+                const cartItems = carritoData.data.items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
+                window.open(`${cartUrl}/${cartItems}`, '_blank');
             }
             
-            // Mostrar mensaje detallado
-            if (productosSinStock.length > 0) {
-                showWarning(mensaje);
-            } else {
-                showSuccess(mensaje);
-            }
-            
-            // Cerrar el modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('viewListModal'));
-            modal.hide();
-            
-            // Abrir carrito en nueva pestaña
-            if (carritoData.data.carrito_url) {
-                window.open(carritoData.data.carrito_url, '_blank');
-            } else {
-                // Si no hay URL específica, abrir carrito general
-                const shopifyUrl = 'https://bichoto.myshopify.com/cart';
-                window.open(shopifyUrl, '_blank');
-            }
-            
+        } else if (carritoData.success && (!carritoData.data.items || carritoData.data.items.length === 0)) {
+            showWarning('⚠️ No hay productos válidos para agregar al carrito');
         } else {
-            showError('Error cargando al carrito: ' + carritoData.error);
+            showError('Error cargando al carrito: ' + (carritoData.error || 'Error desconocido'));
         }
         
     } catch (error) {
@@ -3670,29 +3708,69 @@ async function cargarListaCompletaAlCarrito(listaId) {
         
         const data = await response.json();
         
-        if (data.success) {
-            if (data.data.carrito_url) {
-                mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
+        if (data.success && data.data.items && data.data.items.length > 0) {
+            // Agregar productos al carrito usando la API de Cart de Shopify
+            const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
+            const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
+            
+            try {
+                // Agregar productos al carrito usando la API de Cart de Shopify
+                // Esta API respeta las cookies automáticamente
+                const addToCartResponse = await fetch(`${storefrontUrl}/cart/add.js`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // Importante: incluir cookies
+                    body: JSON.stringify({
+                        items: data.data.items
+                    })
+                });
                 
-                // Cerrar modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
-                if (modal) {
-                    modal.hide();
+                if (addToCartResponse.ok) {
+                    const cartData = await addToCartResponse.json();
+                    console.log('✅ Productos agregados al carrito:', cartData);
+                    
+                    // Refrescar el carrito para asegurar sincronización
+                    await fetch(`${storefrontUrl}/cart.js`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    
+                    mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
+                    
+                    // Cerrar modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // Abrir carrito en nueva pestaña después de un breve delay
+                    setTimeout(() => {
+                        window.open(cartUrl, '_blank');
+                    }, 500);
+                } else {
+                    const errorData = await addToCartResponse.json();
+                    console.error('❌ Error agregando al carrito:', errorData);
+                    throw new Error(errorData.description || 'Error agregando productos al carrito');
                 }
-                
-                // Abrir carrito con productos en nueva pestaña
-                window.open(data.data.carrito_url, '_blank');
-            } else {
-                mostrarNotificacion('No se pudieron agregar productos al carrito. Verifica el stock disponible.', 'warning');
+            } catch (cartError) {
+                console.error('❌ Error en API de Cart:', cartError);
+                // Fallback: usar URL directa del carrito
+                mostrarNotificacion('⚠️ Usando método alternativo para agregar productos...', 'warning');
+                const cartItems = data.data.items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
+                window.open(`${cartUrl}/${cartItems}`, '_blank');
             }
             
             // Mostrar productos sin stock si los hay
             if (data.data.productos_sin_stock && data.data.productos_sin_stock.length > 0) {
                 const productosSinStock = data.data.productos_sin_stock.map(p => p.title).join(', ');
-                mostrarNotificacion(`Productos sin stock: ${productosSinStock}`, 'warning');
+                mostrarNotificacion(`⚠️ Productos sin stock: ${productosSinStock}`, 'warning');
             }
+        } else if (data.success && (!data.data.items || data.data.items.length === 0)) {
+            mostrarNotificacion('⚠️ No hay productos válidos para agregar al carrito. Verifica el stock disponible.', 'warning');
         } else {
-            mostrarNotificacion('Error cargando lista al carrito: ' + data.error, 'error');
+            mostrarNotificacion('Error cargando lista al carrito: ' + (data.error || 'Error desconocido'), 'error');
         }
     } catch (error) {
         console.error('Error cargando lista al carrito:', error);

@@ -568,8 +568,8 @@ async function cambiarCantidadProducto(productoId, delta, variantId = '') {
                 return (variantId === '' && inputVariantId === '') || inputVariantId === variantId;
             });
             if (!input) {
-                mostrarNotificacion('Error: No se pudo encontrar el producto o no es editable', 'error');
-                return;
+            mostrarNotificacion('Error: No se pudo encontrar el producto o no es editable', 'error');
+            return;
             }
             cantidadInput = input;
         }
@@ -1000,22 +1000,64 @@ async function cargarListaAlCarrito() {
         const data = await response.json();
         console.log('📦 Respuesta del servidor:', data);
         
-        if (data.success) {
+        if (data.success && data.data.items && data.data.items.length > 0) {
             console.log('✅ Respuesta exitosa del servidor:', data);
             
-            // Obtener URL del carrito
-            const carritoUrl = data.data && data.data.carrito_url 
-                ? data.data.carrito_url 
-                : 'https://bichoto.myshopify.com/cart';
+            // Agregar productos al carrito usando la API de Cart de Shopify
+            // Esto respeta las cookies y sincroniza el carrito correctamente
+            const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
+            const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
             
-            console.log('🔗 Redirigiendo al carrito:', carritoUrl);
-            mostrarNotificacion(`✅ ${productosParaEnviar.length} productos agregados al carrito. Redirigiendo...`, 'success');
+            console.log('🛒 Agregando productos al carrito de Shopify...');
+            mostrarNotificacion(`🛒 Agregando ${data.data.items.length} productos al carrito...`, 'info');
             
-            // Redirigir inmediatamente (sin setTimeout para evitar bloqueos)
-            window.location.href = carritoUrl;
+            try {
+                // Agregar productos al carrito usando la API de Cart de Shopify
+                // Esta API respeta las cookies automáticamente
+                const addToCartResponse = await fetch(`${storefrontUrl}/cart/add.js`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // Importante: incluir cookies
+                    body: JSON.stringify({
+                        items: data.data.items
+                    })
+                });
+                
+                if (addToCartResponse.ok) {
+                    const cartData = await addToCartResponse.json();
+                    console.log('✅ Productos agregados al carrito:', cartData);
+                    
+                    // Refrescar el carrito para asegurar sincronización
+                    await fetch(`${storefrontUrl}/cart.js`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+                    
+                    mostrarNotificacion(`✅ ${data.data.items.length} productos agregados al carrito exitosamente!`, 'success');
+                    
+                    // Redirigir al carrito después de un breve delay para asegurar que se guardó
+                    setTimeout(() => {
+                        window.location.href = cartUrl;
+                    }, 500);
+                } else {
+                    const errorData = await addToCartResponse.json();
+                    console.error('❌ Error agregando al carrito:', errorData);
+                    throw new Error(errorData.description || 'Error agregando productos al carrito');
+                }
+            } catch (cartError) {
+                console.error('❌ Error en API de Cart:', cartError);
+                // Fallback: usar URL directa del carrito
+                mostrarNotificacion(`⚠️ Usando método alternativo para agregar productos...`, 'warning');
+                const cartItems = data.data.items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
+                window.location.href = `${cartUrl}/${cartItems}`;
+            }
+        } else if (data.success && (!data.data.items || data.data.items.length === 0)) {
+            mostrarNotificacion('⚠️ No hay productos válidos para agregar al carrito', 'warning');
         } else {
             console.error('Error agregando lista al carrito:', data.error);
-            mostrarNotificacion('❌ No se pudieron agregar productos al carrito: ' + data.error, 'error');
+            mostrarNotificacion('❌ No se pudieron agregar productos al carrito: ' + (data.error || 'Error desconocido'), 'error');
         }
         
     } catch (error) {
