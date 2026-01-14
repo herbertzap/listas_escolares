@@ -878,79 +878,30 @@ router.post('/carrito/agregar', async (req, res) => {
     const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
     const cartAddUrl = `https://${shopDomain}.myshopify.com/cart/add.js`;
 
-    console.log(`🛒 Agregando ${items.length} items al carrito de Shopify...`);
+    console.log(`🛒 Preparando ${items.length} items para el carrito de Shopify...`);
 
-    try {
-      // La API de Cart de Shopify requiere que los items tengan 'id' en lugar de 'variant_id'
-      // Convertir items al formato correcto
-      const formattedItems = items.map(item => ({
-        id: item.variant_id,
-        quantity: item.quantity
-      }));
-      
-      // Llamar a la API de Cart de Shopify desde el servidor
-      // Esto evita problemas de CORS
-      const headers = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Pasar cookies del request original si existen
-      if (req.headers.cookie) {
-        headers['Cookie'] = req.headers.cookie;
-      }
-      
-      const response = await axios.post(cartAddUrl, {
-        items: formattedItems
-      }, {
-        headers: headers,
-        withCredentials: true
-      });
+    // Generar URL directa del carrito con los productos
+    // Este es el método recomendado por Shopify para agregar productos desde fuera de su dominio
+    // Funciona sin problemas de CORS ni cookies, y sincroniza automáticamente el carrito
+    const cartItems = items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
+    const cartUrl = `https://${shopDomain}.myshopify.com/cart/${cartItems}`;
 
-      console.log('✅ Productos agregados al carrito exitosamente');
+    console.log(`✅ URL del carrito generada: ${cartUrl}`);
 
-      // Obtener el estado actualizado del carrito
-      const cartUrl = `https://${shopDomain}.myshopify.com/cart.js`;
-      let cartState = null;
-      
-      try {
-        const cartResponse = await axios.get(cartUrl, {
-          headers: {
-            ...(req.headers.cookie ? { 'Cookie': req.headers.cookie } : {})
-          },
-          withCredentials: true
-        });
-        cartState = cartResponse.data;
-      } catch (cartError) {
-        console.warn('⚠️ No se pudo obtener el estado del carrito:', cartError.message);
-      }
-
-      res.json({
-        success: true,
-        data: {
-          cart: response.data,
-          cart_state: cartState,
-          items_added: items.length,
-          cart_url: `https://${shopDomain}.myshopify.com/cart`
-        },
-        message: `${items.length} productos agregados al carrito exitosamente`
-      });
-
-    } catch (error) {
-      console.error('❌ Error agregando productos al carrito:', error.message);
-      console.error('❌ Detalles:', error.response?.data || error.message);
-      
-      // Si falla, retornar error pero también la URL del carrito como fallback
-      const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
-      const cartItems = items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
-      const fallbackUrl = `https://${shopDomain}.myshopify.com/cart/${cartItems}`;
-
-      return res.status(500).json({
-        success: false,
-        error: 'Error agregando productos al carrito',
-        details: error.response?.data?.description || error.message,
-        fallback_url: fallbackUrl
-      });
-    }
+    // Retornar la URL del carrito para que el frontend redirija al usuario
+    // Shopify manejará automáticamente la adición de productos al carrito del usuario
+    res.json({
+      success: true,
+      data: {
+        cart_url: cartUrl,
+        items_added: items.length,
+        items: items.map(item => ({
+          variant_id: item.variant_id,
+          quantity: item.quantity
+        }))
+      },
+      message: `${items.length} productos preparados para el carrito`
+    });
 
   } catch (error) {
     console.error('❌ Error en endpoint de agregar al carrito:', error);

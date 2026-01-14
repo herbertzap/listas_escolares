@@ -3715,52 +3715,37 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
             const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
             const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
             
-            try {
-                // Usar endpoint proxy del backend para evitar problemas de CORS
-                const addToCartResponse = await fetch('/api/shopify/carrito/agregar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include', // Importante: incluir cookies
-                    body: JSON.stringify({
-                        items: data.data.items
-                    })
-                });
+            // Usar URL directa del carrito (método recomendado por Shopify)
+            // Esto sincroniza automáticamente el carrito y funciona sin problemas de CORS
+            const cartResponse = await fetch('/api/shopify/carrito/agregar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    items: data.data.items
+                })
+            });
+            
+            const cartResponseData = await cartResponse.json();
+            
+            if (cartResponse.ok && cartResponseData.success) {
+                console.log('✅ URL del carrito generada:', cartResponseData.data.cart_url);
                 
-                const cartResponseData = await addToCartResponse.json();
+                mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
                 
-                if (addToCartResponse.ok && cartResponseData.success) {
-                    console.log('✅ Productos agregados al carrito:', cartResponseData.data);
-                    
-                    mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
-                    
-                    // Cerrar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                    
-                    // Abrir carrito en nueva pestaña después de un breve delay
-                    setTimeout(() => {
-                        window.open(cartResponseData.data.cart_url || cartUrl, '_blank');
-                    }, 500);
-                } else {
-                    console.error('❌ Error agregando al carrito:', cartResponseData);
-                    // Usar fallback si está disponible
-                    if (cartResponseData.fallback_url) {
-                        mostrarNotificacion('⚠️ Usando método alternativo para agregar productos...', 'warning');
-                        window.open(cartResponseData.fallback_url, '_blank');
-                    } else {
-                        throw new Error(cartResponseData.error || 'Error agregando productos al carrito');
-                    }
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
+                if (modal) {
+                    modal.hide();
                 }
-            } catch (cartError) {
-                console.error('❌ Error en API de Cart:', cartError);
-                // Fallback: usar URL directa del carrito
-                mostrarNotificacion('⚠️ Usando método alternativo para agregar productos...', 'warning');
-                const cartItems = data.data.items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
-                window.open(`${cartUrl}/${cartItems}`, '_blank');
+                
+                // Redirigir al carrito (Shopify agregará los productos automáticamente)
+                window.open(cartResponseData.data.cart_url, '_blank');
+            } else {
+                console.error('❌ Error generando URL del carrito:', cartResponseData);
+                mostrarNotificacion('❌ Error: ' + (cartResponseData.error || 'Error desconocido'), 'error');
             }
             
             // Mostrar productos sin stock si los hay
