@@ -854,4 +854,103 @@ router.get('/test', async (req, res) => {
   }
 });
 
+// POST /api/shopify/carrito/agregar - Proxy para agregar productos al carrito de Shopify
+// Este endpoint evita problemas de CORS llamando a Shopify desde el servidor
+router.post('/carrito/agregar', async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Se requiere un array de items para agregar al carrito'
+      });
+    }
+
+    if (!shopifyAPI.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Shopify no está configurado'
+      });
+    }
+
+    const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
+    const cartAddUrl = `https://${shopDomain}.myshopify.com/cart/add.js`;
+
+    console.log(`🛒 Agregando ${items.length} items al carrito de Shopify...`);
+
+    try {
+      // Llamar a la API de Cart de Shopify desde el servidor
+      // Esto evita problemas de CORS
+      const response = await axios.post(cartAddUrl, {
+        items: items
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Incluir cookies del usuario si están disponibles
+        withCredentials: true,
+        // Pasar cookies del request original si existen
+        headers: {
+          'Content-Type': 'application/json',
+          ...(req.headers.cookie ? { 'Cookie': req.headers.cookie } : {})
+        }
+      });
+
+      console.log('✅ Productos agregados al carrito exitosamente');
+
+      // Obtener el estado actualizado del carrito
+      const cartUrl = `https://${shopDomain}.myshopify.com/cart.js`;
+      let cartState = null;
+      
+      try {
+        const cartResponse = await axios.get(cartUrl, {
+          headers: {
+            ...(req.headers.cookie ? { 'Cookie': req.headers.cookie } : {})
+          },
+          withCredentials: true
+        });
+        cartState = cartResponse.data;
+      } catch (cartError) {
+        console.warn('⚠️ No se pudo obtener el estado del carrito:', cartError.message);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          cart: response.data,
+          cart_state: cartState,
+          items_added: items.length,
+          cart_url: `https://${shopDomain}.myshopify.com/cart`
+        },
+        message: `${items.length} productos agregados al carrito exitosamente`
+      });
+
+    } catch (error) {
+      console.error('❌ Error agregando productos al carrito:', error.message);
+      console.error('❌ Detalles:', error.response?.data || error.message);
+      
+      // Si falla, retornar error pero también la URL del carrito como fallback
+      const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
+      const cartItems = items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
+      const fallbackUrl = `https://${shopDomain}.myshopify.com/cart/${cartItems}`;
+
+      return res.status(500).json({
+        success: false,
+        error: 'Error agregando productos al carrito',
+        details: error.response?.data?.description || error.message,
+        fallback_url: fallbackUrl
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Error en endpoint de agregar al carrito:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -3714,9 +3714,8 @@ async function cargarListaCompletaAlCarrito(listaId) {
             const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
             
             try {
-                // Agregar productos al carrito usando la API de Cart de Shopify
-                // Esta API respeta las cookies automáticamente
-                const addToCartResponse = await fetch(`${storefrontUrl}/cart/add.js`, {
+                // Usar endpoint proxy del backend para evitar problemas de CORS
+                const addToCartResponse = await fetch('/api/shopify/carrito/agregar', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -3727,15 +3726,10 @@ async function cargarListaCompletaAlCarrito(listaId) {
                     })
                 });
                 
-                if (addToCartResponse.ok) {
-                    const cartData = await addToCartResponse.json();
-                    console.log('✅ Productos agregados al carrito:', cartData);
-                    
-                    // Refrescar el carrito para asegurar sincronización
-                    await fetch(`${storefrontUrl}/cart.js`, {
-                        method: 'GET',
-                        credentials: 'include'
-                    });
+                const cartResponseData = await addToCartResponse.json();
+                
+                if (addToCartResponse.ok && cartResponseData.success) {
+                    console.log('✅ Productos agregados al carrito:', cartResponseData.data);
                     
                     mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
                     
@@ -3747,12 +3741,17 @@ async function cargarListaCompletaAlCarrito(listaId) {
                     
                     // Abrir carrito en nueva pestaña después de un breve delay
                     setTimeout(() => {
-                        window.open(cartUrl, '_blank');
+                        window.open(cartResponseData.data.cart_url || cartUrl, '_blank');
                     }, 500);
                 } else {
-                    const errorData = await addToCartResponse.json();
-                    console.error('❌ Error agregando al carrito:', errorData);
-                    throw new Error(errorData.description || 'Error agregando productos al carrito');
+                    console.error('❌ Error agregando al carrito:', cartResponseData);
+                    // Usar fallback si está disponible
+                    if (cartResponseData.fallback_url) {
+                        mostrarNotificacion('⚠️ Usando método alternativo para agregar productos...', 'warning');
+                        window.open(cartResponseData.fallback_url, '_blank');
+                    } else {
+                        throw new Error(cartResponseData.error || 'Error agregando productos al carrito');
+                    }
                 }
             } catch (cartError) {
                 console.error('❌ Error en API de Cart:', cartError);
