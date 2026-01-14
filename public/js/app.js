@@ -3540,7 +3540,7 @@ function renderCursosColegio(nombreColegio, region, comuna, listas) {
                                 <i class="fas fa-eye me-1"></i>
                                 Ver Productos
                             </button>
-                            <button class="btn btn-success btn-sm" onclick="cargarListaCompletaAlCarrito(${lista.id})">
+                            <button class="btn btn-success btn-sm" onclick="cargarListaCompletaAlCarrito(${lista.id}, this)">
                                 <i class="fas fa-cart-plus me-1"></i>
                                 Cargar al Carrito
                             </button>
@@ -3671,7 +3671,7 @@ function mostrarModalListaProductos(lista) {
                     </div>
                 </div>
                 <div class="col-md-6 text-end">
-                    <button class="btn btn-success btn-lg" onclick="cargarListaCompletaAlCarrito(${lista.id})">
+                    <button class="btn btn-success btn-lg" onclick="cargarListaCompletaAlCarrito(${lista.id}, this)">
                         <i class="fas fa-cart-plus me-2"></i>
                         Cargar Lista Completa al Carrito
                     </button>
@@ -3687,13 +3687,15 @@ function mostrarModalListaProductos(lista) {
 }
 
 // Función para cargar lista completa al carrito
-async function cargarListaCompletaAlCarrito(listaId) {
+async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
     try {
         // Mostrar indicador de carga
-        const button = event.target;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Cargando...';
-        button.disabled = true;
+        const button = buttonElement || (event && event.target) || document.querySelector(`button[onclick*="cargarListaCompletaAlCarrito(${listaId})"]`);
+        const originalText = button ? button.innerHTML : '';
+        if (button) {
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Cargando...';
+            button.disabled = true;
+        }
         
         // Usar lista personalizada si está disponible (usar_lista_personalizada = true)
         const response = await fetch(`/api/shopify/carrito/lista/${listaId}`, {
