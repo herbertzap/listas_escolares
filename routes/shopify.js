@@ -375,6 +375,43 @@ router.post('/carrito/lista/:listaId', async (req, res) => {
     const itemsCarrito = [];
     const productosSinStock = [];
 
+    // Agrupar productos por ID para evitar solicitudes duplicadas
+    const productosPorId = new Map();
+    productosLista.forEach(p => {
+      const id = parseInt(p.producto_shopify_id);
+      if (!isNaN(id)) {
+        if (!productosPorId.has(id)) {
+          productosPorId.set(id, []);
+        }
+        productosPorId.get(id).push(p);
+      }
+    });
+
+    console.log(`📦 Procesando ${productosPorId.size} productos únicos de ${productosLista.length} totales`);
+
+    // Obtener todos los productos únicos primero (con rate limiting)
+    const productIds = Array.from(productosPorId.keys());
+    const { products: shopifyProducts, errors: fetchErrors } = await shopifyAPI.getProductsBatch(productIds, true);
+
+    // Crear un mapa de productos por ID para acceso rápido
+    const productosMap = new Map();
+    shopifyProducts.forEach(p => productosMap.set(parseInt(p.id), p));
+
+    // Procesar errores de fetch
+    fetchErrors.forEach(({ id, error }) => {
+      const productosAfectados = productosPorId.get(id) || [];
+      productosAfectados.forEach(productoLista => {
+        productosSinStock.push({
+          id: id,
+          title: 'Error obteniendo producto de Shopify',
+          cantidad_solicitada: productoLista.cantidad,
+          stock_disponible: 0,
+          error: error
+        });
+      });
+    });
+
+    // Procesar cada producto de la lista
     for (const productoLista of productosLista) {
       try {
         // Validar ID del producto
@@ -390,8 +427,18 @@ router.post('/carrito/lista/:listaId', async (req, res) => {
           continue;
         }
 
-        // Obtener producto de Shopify
-        const shopifyProduct = await shopifyAPI.getProduct(productId);
+        // Obtener producto del mapa (ya fue obtenido con rate limiting)
+        const shopifyProduct = productosMap.get(productId);
+        
+        if (!shopifyProduct) {
+          productosSinStock.push({
+            id: productId,
+            title: 'Producto no encontrado en Shopify',
+            cantidad_solicitada: productoLista.cantidad,
+            stock_disponible: 0
+          });
+          continue;
+        }
 
         if (shopifyProduct.status !== 'active') {
           productosSinStock.push({
@@ -594,6 +641,47 @@ router.post('/carrito/personalizado', async (req, res) => {
     const itemsCarrito = [];
     const productosSinStock = [];
 
+    // Agrupar productos por ID para evitar solicitudes duplicadas
+    const productosPorId = new Map();
+    productosNormalizados.forEach(p => {
+      let productId = p.producto_shopify_id;
+      if (typeof productId === 'string' && productId.includes('.')) {
+        productId = productId.split('.')[0];
+      }
+      productId = parseInt(productId, 10);
+      if (!isNaN(productId)) {
+        if (!productosPorId.has(productId)) {
+          productosPorId.set(productId, []);
+        }
+        productosPorId.get(productId).push({ ...p, producto_shopify_id: productId });
+      }
+    });
+
+    console.log(`📦 Procesando ${productosPorId.size} productos únicos de ${productosNormalizados.length} totales`);
+
+    // Obtener todos los productos únicos primero (con rate limiting)
+    const productIds = Array.from(productosPorId.keys());
+    const { products: shopifyProducts, errors: fetchErrors } = await shopifyAPI.getProductsBatch(productIds, true);
+
+    // Crear un mapa de productos por ID para acceso rápido
+    const productosMap = new Map();
+    shopifyProducts.forEach(p => productosMap.set(parseInt(p.id), p));
+
+    // Procesar errores de fetch
+    fetchErrors.forEach(({ id, error }) => {
+      const productosAfectados = productosPorId.get(id) || [];
+      productosAfectados.forEach(producto => {
+        productosSinStock.push({
+          id: id,
+          title: 'Error obteniendo producto de Shopify',
+          cantidad_solicitada: producto.cantidad,
+          stock_disponible: 0,
+          error: error
+        });
+      });
+    });
+
+    // Procesar cada producto
     for (const producto of productosNormalizados) {
       try {
         // Validar y limpiar ID del producto
@@ -607,8 +695,18 @@ router.post('/carrito/personalizado', async (req, res) => {
           throw new Error('ID de producto inválido');
         }
 
-        // Obtener producto de Shopify
-        const shopifyProduct = await shopifyAPI.getProduct(productId);
+        // Obtener producto del mapa (ya fue obtenido con rate limiting)
+        const shopifyProduct = productosMap.get(productId);
+        
+        if (!shopifyProduct) {
+          productosSinStock.push({
+            id: productId,
+            title: 'Producto no encontrado en Shopify',
+            cantidad_solicitada: producto.cantidad,
+            stock_disponible: 0
+          });
+          continue;
+        }
 
         if (shopifyProduct.status !== 'active') {
           productosSinStock.push({

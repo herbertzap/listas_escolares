@@ -7,6 +7,15 @@ class ShopifyAPI {
     this.apiSecret = process.env.SHOPIFY_API_SECRET;
     this.accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
     
+    // Rate limiting: Shopify permite ~2 solicitudes por segundo
+    // Usaremos 500ms entre solicitudes para estar seguros
+    this.requestDelay = 500; // milisegundos entre solicitudes
+    this.lastRequestTime = 0;
+    
+    // Cache de productos para evitar solicitudes repetidas
+    this.productCache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
+    
     console.log('🔧 Configuración de Shopify:', {
       shopUrl: this.shopUrl,
       hasApiKey: !!this.apiKey,
@@ -16,6 +25,44 @@ class ShopifyAPI {
     
     if (!this.shopUrl || !this.accessToken) {
       console.warn('⚠️ Credenciales de Shopify no configuradas completamente');
+    }
+  }
+
+  /**
+   * Espera el tiempo necesario para respetar el rate limit
+   */
+  async waitForRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.requestDelay) {
+      const waitTime = this.requestDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    this.lastRequestTime = Date.now();
+  }
+
+  /**
+   * Retry con exponential backoff para errores de rate limit
+   */
+  async retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await this.waitForRateLimit();
+        return await fn();
+      } catch (error) {
+        const isRateLimit = error.response?.status === 429;
+        const isServerError = error.response?.status >= 500;
+        
+        if ((isRateLimit || isServerError) && attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+          console.log(`⏳ Rate limit detectado. Esperando ${delay}ms antes de reintentar (intento ${attempt + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
@@ -114,27 +161,86 @@ class ShopifyAPI {
     }
   }
 
-  // Obtener un producto específico
-  async getProduct(productId) {
+  // Obtener un producto específico con cache y rate limiting
+  async getProduct(productId, useCache = true) {
     try {
       // Validar que el ID sea un número válido
       const id = parseInt(productId);
       if (isNaN(id)) {
         throw new Error(`ID de producto inválido: ${productId}`);
       }
-      
-      const response = await axios.get(`${this.shopUrl}/admin/api/2023-10/products/${id}.json`, {
-        headers: {
-          'X-Shopify-Access-Token': this.accessToken,
-          'Content-Type': 'application/json'
+
+      // Verificar cache
+      if (useCache && this.productCache.has(id)) {
+        const cached = this.productCache.get(id);
+        if (Date.now() - cached.timestamp < this.cacheTimeout) {
+          console.log(`📦 Producto ${id} obtenido del cache`);
+          return cached.product;
+        } else {
+          this.productCache.delete(id);
         }
+      }
+
+      // Obtener producto con retry y rate limiting
+      const product = await this.retryWithBackoff(async () => {
+        const response = await axios.get(`${this.shopUrl}/admin/api/2023-10/products/${id}.json`, {
+          headers: {
+            'X-Shopify-Access-Token': this.accessToken,
+            'Content-Type': 'application/json'
+          }
+        });
+        return response.data.product;
       });
-      
-      return response.data.product;
+
+      // Guardar en cache
+      if (useCache) {
+        this.productCache.set(id, {
+          product: product,
+          timestamp: Date.now()
+        });
+      }
+
+      return product;
     } catch (error) {
-      console.error('❌ Error obteniendo producto de Shopify:', error.message);
+      console.error(`❌ Error obteniendo producto ${productId} de Shopify:`, error.message);
+      if (error.response?.status === 429) {
+        console.error('⚠️ Rate limit excedido. Considera reducir la cantidad de productos o esperar unos momentos.');
+      }
       throw error;
     }
+  }
+
+  /**
+   * Obtener múltiples productos de forma eficiente (agrupa IDs únicos)
+   */
+  async getProductsBatch(productIds, useCache = true) {
+    // Filtrar IDs únicos
+    const uniqueIds = [...new Set(productIds.map(id => parseInt(id)).filter(id => !isNaN(id)))];
+    
+    console.log(`📦 Obteniendo ${uniqueIds.length} productos únicos de ${productIds.length} solicitados`);
+
+    const products = [];
+    const errors = [];
+
+    for (let i = 0; i < uniqueIds.length; i++) {
+      const productId = uniqueIds[i];
+      try {
+        const product = await this.getProduct(productId, useCache);
+        products.push(product);
+        
+        // Log de progreso cada 10 productos
+        if ((i + 1) % 10 === 0) {
+          console.log(`📊 Progreso: ${i + 1}/${uniqueIds.length} productos obtenidos`);
+        }
+      } catch (error) {
+        errors.push({ id: productId, error: error.message });
+        console.error(`❌ Error obteniendo producto ${productId}:`, error.message);
+      }
+    }
+
+    console.log(`✅ Obtenidos ${products.length} productos exitosamente. ${errors.length} errores.`);
+
+    return { products, errors };
   }
 
   // Obtener inventario de un producto
