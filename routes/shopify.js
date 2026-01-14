@@ -883,19 +883,20 @@ router.post('/carrito/agregar', async (req, res) => {
     try {
       // Llamar a la API de Cart de Shopify desde el servidor
       // Esto evita problemas de CORS
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Pasar cookies del request original si existen
+      if (req.headers.cookie) {
+        headers['Cookie'] = req.headers.cookie;
+      }
+      
       const response = await axios.post(cartAddUrl, {
         items: items
       }, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Incluir cookies del usuario si están disponibles
-        withCredentials: true,
-        // Pasar cookies del request original si existen
-        headers: {
-          'Content-Type': 'application/json',
-          ...(req.headers.cookie ? { 'Cookie': req.headers.cookie } : {})
-        }
+        headers: headers,
+        withCredentials: true
       });
 
       console.log('✅ Productos agregados al carrito exitosamente');
