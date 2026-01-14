@@ -1037,17 +1037,17 @@ function renderProductosModal(productos) {
 
 // Toggle producto seleccionado
 function toggleProductoSeleccionado(id, title, price, hasVariants = false) {
-    // Si tiene variantes, requerir selección de variante
-    if (hasVariants) {
-        mostrarNotificacion('Por favor selecciona una variante del producto antes de agregarlo', 'warning');
-        // Desmarcar el checkbox
-        const checkbox = document.getElementById(`producto-${id}`);
-        if (checkbox) {
-            checkbox.checked = false;
+        // Si tiene variantes, requerir selección de variante
+        if (hasVariants) {
+            mostrarNotificacion('Por favor selecciona una variante del producto antes de agregarlo', 'warning');
+            // Desmarcar el checkbox
+            const checkbox = document.getElementById(`producto-${id}`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            return;
         }
-        return;
-    }
-    
+        
     // Para productos sin variantes, buscar por producto_shopify_id y variant_id null
     const index = productosSeleccionados.findIndex(p => 
         p.producto_shopify_id === id && (p.variant_id === null || p.variant_id === undefined)

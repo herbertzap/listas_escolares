@@ -1087,15 +1087,15 @@ router.put('/personalizada/:listaId/producto/:productoId', async (req, res) => {
       existente = await db.query(
         'SELECT * FROM listas_personalizadas_temp WHERE ip_usuario = ? AND lista_base_id = ? AND producto_shopify_id = ? AND (variant_id IS NULL OR variant_id = ?)',
         [ipUsuario, listaId, productoId, null]
-      );
+    );
     }
     
     if (existente.length > 0) {
       if (variant_id) {
-        await db.query(
+    await db.query(
           'UPDATE listas_personalizadas_temp SET cantidad = ?, accion = ? WHERE ip_usuario = ? AND lista_base_id = ? AND producto_shopify_id = ? AND variant_id = ?',
           [cantidad, 'modificado', ipUsuario, listaId, productoId, variant_id]
-        );
+    );
       } else {
         await db.query(
           'UPDATE listas_personalizadas_temp SET cantidad = ?, accion = ? WHERE ip_usuario = ? AND lista_base_id = ? AND producto_shopify_id = ? AND (variant_id IS NULL OR variant_id = ?)',
@@ -1135,10 +1135,10 @@ router.delete('/personalizada/:listaId/producto/:productoId', async (req, res) =
 
     // Marcar producto como eliminado en la tabla temporal, considerando variant_id si se proporciona
     if (variant_id) {
-      await db.query(
+    await db.query(
         'UPDATE listas_personalizadas_temp SET accion = ? WHERE ip_usuario = ? AND lista_base_id = ? AND producto_shopify_id = ? AND variant_id = ?',
         ['eliminado', ipUsuario, listaId, productoId, variant_id]
-      );
+    );
     } else {
       await db.query(
         'UPDATE listas_personalizadas_temp SET accion = ? WHERE ip_usuario = ? AND lista_base_id = ? AND producto_shopify_id = ? AND (variant_id IS NULL OR variant_id = ?)',
