@@ -425,27 +425,46 @@ router.post('/carrito/lista/:listaId', async (req, res) => {
         }
 
         // Verificar stock y agregar al carrito
-        if (variant.inventory_quantity >= productoLista.cantidad) {
+        // Manejar casos donde inventory_quantity puede ser null (sin seguimiento de inventario)
+        const inventoryQty = variant.inventory_quantity;
+        const hasInventoryTracking = variant.inventory_management !== null && variant.inventory_management !== undefined;
+        const canAddToCart = !hasInventoryTracking || inventoryQty === null || inventoryQty === undefined || inventoryQty >= productoLista.cantidad;
+        
+        if (canAddToCart) {
           itemsCarrito.push({
             variant_id: variant.id,
             quantity: productoLista.cantidad
           });
-          console.log(`✅ Agregado al carrito: ${shopifyProduct.title} - Variante ${variant.id} x${productoLista.cantidad}`);
+          const stockInfo = hasInventoryTracking && inventoryQty !== null ? ` (Stock: ${inventoryQty})` : ' (Sin seguimiento de inventario)';
+          console.log(`✅ Agregado al carrito: ${shopifyProduct.title} - Variante ${variant.id} x${productoLista.cantidad}${stockInfo}`);
         } else {
           productosSinStock.push({
             id: productId,
             title: shopifyProduct.title,
             cantidad_solicitada: productoLista.cantidad,
-            stock_disponible: variant.inventory_quantity
+            stock_disponible: inventoryQty || 0
           });
-          console.log(`❌ Sin stock suficiente: ${shopifyProduct.title} - Disponible: ${variant.inventory_quantity}, Solicitado: ${productoLista.cantidad}`);
+          console.log(`❌ Sin stock suficiente: ${shopifyProduct.title} - Disponible: ${inventoryQty || 0}, Solicitado: ${productoLista.cantidad}`);
         }
 
       } catch (error) {
         console.error(`❌ Error procesando producto ${productoLista.producto_shopify_id}:`, error.message);
+        console.error(`❌ Stack trace:`, error.stack);
+        
+        let errorType = 'Error al procesar producto';
+        if (error.response?.status === 404) {
+          errorType = 'Producto no existe en Shopify';
+        } else if (error.response?.status === 403) {
+          errorType = 'Sin permisos para acceder al producto';
+        } else if (error.response?.status === 429) {
+          errorType = 'Límite de solicitudes excedido (rate limit)';
+        } else if (error.response?.status >= 500) {
+          errorType = 'Error del servidor de Shopify';
+        }
+        
         productosSinStock.push({
           id: productoLista.producto_shopify_id,
-          title: 'Error al procesar producto',
+          title: errorType,
           cantidad_solicitada: productoLista.cantidad,
           stock_disponible: 0,
           error: error.message
@@ -623,30 +642,41 @@ router.post('/carrito/personalizado', async (req, res) => {
         }
 
         // Verificar stock y agregar al carrito
-        if (variant.inventory_quantity >= producto.cantidad) {
+        // Manejar casos donde inventory_quantity puede ser null (sin seguimiento de inventario)
+        const inventoryQty = variant.inventory_quantity;
+        const hasInventoryTracking = variant.inventory_management !== null && variant.inventory_management !== undefined;
+        const canAddToCart = !hasInventoryTracking || inventoryQty === null || inventoryQty === undefined || inventoryQty >= producto.cantidad;
+        
+        if (canAddToCart) {
           itemsCarrito.push({
             variant_id: variant.id,
             quantity: producto.cantidad
           });
-          console.log(`✅ Agregado al carrito: ${shopifyProduct.title} - Variante ${variant.id} x${producto.cantidad}`);
+          const stockInfo = hasInventoryTracking && inventoryQty !== null ? ` (Stock: ${inventoryQty})` : ' (Sin seguimiento de inventario)';
+          console.log(`✅ Agregado al carrito: ${shopifyProduct.title} - Variante ${variant.id} x${producto.cantidad}${stockInfo}`);
         } else {
           productosSinStock.push({
             id: productId,
             title: shopifyProduct.title,
             cantidad_solicitada: producto.cantidad,
-            stock_disponible: variant.inventory_quantity
+            stock_disponible: inventoryQty || 0
           });
-          console.log(`❌ Sin stock suficiente: ${shopifyProduct.title} - Disponible: ${variant.inventory_quantity}, Solicitado: ${producto.cantidad}`);
+          console.log(`❌ Sin stock suficiente: ${shopifyProduct.title} - Disponible: ${inventoryQty || 0}, Solicitado: ${producto.cantidad}`);
         }
 
       } catch (error) {
         console.error(`❌ Error procesando producto ${producto.producto_shopify_id}:`, error.message);
+        console.error(`❌ Stack trace:`, error.stack);
         
         let errorType = 'Error al procesar producto';
         if (error.response?.status === 404) {
           errorType = 'Producto no existe en Shopify';
         } else if (error.response?.status === 403) {
           errorType = 'Sin permisos para acceder al producto';
+        } else if (error.response?.status === 429) {
+          errorType = 'Límite de solicitudes excedido (rate limit)';
+        } else if (error.response?.status >= 500) {
+          errorType = 'Error del servidor de Shopify';
         }
         
         productosSinStock.push({
