@@ -881,6 +881,13 @@ router.post('/carrito/agregar', async (req, res) => {
     console.log(`🛒 Agregando ${items.length} items al carrito de Shopify...`);
 
     try {
+      // La API de Cart de Shopify requiere que los items tengan 'id' en lugar de 'variant_id'
+      // Convertir items al formato correcto
+      const formattedItems = items.map(item => ({
+        id: item.variant_id,
+        quantity: item.quantity
+      }));
+      
       // Llamar a la API de Cart de Shopify desde el servidor
       // Esto evita problemas de CORS
       const headers = {
@@ -893,7 +900,7 @@ router.post('/carrito/agregar', async (req, res) => {
       }
       
       const response = await axios.post(cartAddUrl, {
-        items: items
+        items: formattedItems
       }, {
         headers: headers,
         withCredentials: true
