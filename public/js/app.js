@@ -3778,9 +3778,11 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
         mostrarNotificacion('Error de conexión al cargar lista al carrito', 'error');
     } finally {
         // Restaurar botón
-        const button = event.target;
-        button.innerHTML = '<i class="fas fa-cart-plus me-2"></i>Cargar Lista Completa al Carrito';
-        button.disabled = false;
+        const button = buttonElement || (event && event.target) || document.querySelector(`button[onclick*="cargarListaCompletaAlCarrito(${listaId})"]`);
+        if (button) {
+            button.innerHTML = '<i class="fas fa-cart-plus me-2"></i>Cargar Lista Completa al Carrito';
+            button.disabled = false;
+        }
     }
 }
 

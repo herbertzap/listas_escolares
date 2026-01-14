@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const db = require('../utils/database');
 const shopifyAPI = require('../utils/shopify');
 const { requireAuth } = require('../utils/auth-simple');
