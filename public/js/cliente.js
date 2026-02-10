@@ -20,9 +20,6 @@ function inicializarSistemaListas() {
     productosEliminados.clear();
     // currentListaId se maneja en app.js
     
-    // Hacer la función verListaCliente disponible globalmente para app.js
-    window.verListaClienteCliente = verListaCliente;
-    
     console.log('✅ Variables de personalización inicializadas');
 }
 
@@ -1137,6 +1134,9 @@ function mostrarResumenCambios() {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     inicializarSistemaListas();
+    
+    // Hacer la función verListaCliente disponible globalmente para app.js (después de que esté definida)
+    window.verListaClienteCliente = verListaCliente;
     
     // Configurar event listener para el buscador de productos
     const buscadorInput = document.getElementById('buscador-productos-input');
