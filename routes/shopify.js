@@ -876,44 +876,31 @@ router.post('/carrito/agregar', async (req, res) => {
     }
 
     const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
+    const storefrontUrl = `https://${shopDomain}.myshopify.com`;
 
     console.log(`🛒 Preparando ${items.length} items para el carrito de Shopify...`);
 
-    // Generar URL usando /cart/add con múltiples items.
-    // A diferencia de /cart/{items}, esta ruta AGREGA productos al carrito existente
-    // en lugar de reemplazarlo completo, permitiendo enviar varias listas en distintos envíos.
-    const queryParts = [];
-    items.forEach((item, index) => {
-      if (!item || !item.variant_id || !item.quantity) return;
-      queryParts.push(`items[${index}][id]=${encodeURIComponent(item.variant_id)}`);
-      queryParts.push(`items[${index}][quantity]=${encodeURIComponent(item.quantity)}`);
-    });
+    // Filtrar items válidos; el frontend enviará por formulario POST (sin URL larga ni popup)
+    const itemsValidos = items
+      .filter(item => item && item.variant_id != null && item.quantity != null)
+      .map(item => ({ variant_id: item.variant_id, quantity: Number(item.quantity) || 1 }));
 
-    if (queryParts.length === 0) {
+    if (itemsValidos.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'No hay items válidos para agregar al carrito'
       });
     }
 
-    const queryString = queryParts.join('&');
-    const cartUrl = `https://${shopDomain}.myshopify.com/cart/add?${queryString}`;
-
-    console.log(`✅ URL de /cart/add generada: ${cartUrl}`);
-
-    // Retornar la URL del carrito para que el frontend redirija al usuario
-    // Shopify manejará automáticamente la adición de productos al carrito del usuario
+    // Devolver solo items y storefront_url; el frontend hace POST con formulario a /cart/add
     res.json({
       success: true,
       data: {
-        cart_url: cartUrl,
-        items_added: items.length,
-        items: items.map(item => ({
-          variant_id: item.variant_id,
-          quantity: item.quantity
-        }))
+        storefront_url: storefrontUrl,
+        items: itemsValidos,
+        items_added: itemsValidos.length
       },
-      message: `${items.length} productos preparados para el carrito (modo agregar, no reemplazar)`
+      message: `${itemsValidos.length} productos listos para agregar al carrito`
     });
 
   } catch (error) {

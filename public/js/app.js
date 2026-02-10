@@ -3686,6 +3686,53 @@ function mostrarModalListaProductos(lista) {
     modalInstance.show();
 }
 
+// Envía items al carrito: en iframe usa postMessage para que la página principal llame a /cart/add.js;
+// si no, usa formulario POST por lotes (Shopify /cart/add solo acepta un ítem por envío).
+function enviarAlCarritoPorFormulario(items, storefrontUrl) {
+    if (!items || !items.length || !storefrontUrl) return;
+    var isIframe = window !== window.top;
+    if (isIframe) {
+        var payload = {
+            type: 'CART_ADD_ITEMS',
+            items: items.map(function (it) { return { id: it.variant_id, quantity: it.quantity || 1 }; }),
+            storefront_url: storefrontUrl
+        };
+        console.log('[Listas] Enviando CART_ADD_ITEMS al parent:', payload.items.length, 'items');
+        window.parent.postMessage(payload, '*');
+        if (window.top !== window.parent) {
+            console.log('[Listas] Enviando CART_ADD_ITEMS al top');
+            window.top.postMessage(payload, '*');
+        }
+        return;
+    }
+    // Sin iframe: enviar por formulario. Shopify /cart/add acepta un ítem por POST; enviar el primero y redirigir al carrito con el resto en la URL (límite de tamaño).
+    // Si hay muchos ítems, solo agregamos los que caben en un solo form (1 ítem por form) y redirigimos al carrito; el resto se pierde. Mejor: enviar en tandas de 1 ítem con múltiples forms no es posible en una sola navegación.
+    // Por tanto, con muchos ítems y sin iframe usamos la URL corta solo para el primer ítem y redirigimos al carrito.
+    if (items.length === 1) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = storefrontUrl.replace(/\/$/, '') + '/cart/add';
+        form.target = '_self';
+        form.style.display = 'none';
+        var idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'id';
+        idInput.value = items[0].variant_id;
+        form.appendChild(idInput);
+        var qtyInput = document.createElement('input');
+        qtyInput.type = 'hidden';
+        qtyInput.name = 'quantity';
+        qtyInput.value = items[0].quantity || 1;
+        form.appendChild(qtyInput);
+        document.body.appendChild(form);
+        form.submit();
+        return;
+    }
+    // Varios ítems sin iframe: redirigir a la tienda con el primer ítem en el form y el resto en query (si la tienda lo soporta). Shopify no soporta múltiples en un form HTML; usamos URL /cart/ID:QTY,ID:QTY (reemplaza carrito pero evita popup).
+    var cartPart = items.slice(0, 50).map(function (it) { return it.variant_id + ':' + (it.quantity || 1); }).join(',');
+    window.location.href = storefrontUrl.replace(/\/$/, '') + '/cart/' + cartPart;
+}
+
 // Función para cargar lista completa al carrito
 async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
     try {
@@ -3711,42 +3758,20 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
         const data = await response.json();
         
         if (data.success && data.data.items && data.data.items.length > 0) {
-            // Agregar productos al carrito usando la API de Cart de Shopify
             const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
-            const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
+            const items = data.data.items;
             
-            // Usar URL directa del carrito (método recomendado por Shopify)
-            // Esto sincroniza automáticamente el carrito y funciona sin problemas de CORS
-            const cartResponse = await fetch('/api/shopify/carrito/agregar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    items: data.data.items
-                })
-            });
+            mostrarNotificacion(`✅ ${data.data.productos_agregados} productos listos. Redirigiendo al carrito...`, 'success');
             
-            const cartResponseData = await cartResponse.json();
-            
-            if (cartResponse.ok && cartResponseData.success) {
-                console.log('✅ URL del carrito generada:', cartResponseData.data.cart_url);
-                
-                mostrarNotificacion(`✅ ${data.data.productos_agregados} productos agregados al carrito!`, 'success');
-                
-                // Cerrar modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
-                if (modal) {
-                    modal.hide();
-                }
-                
-                // Redirigir al carrito (Shopify agregará los productos automáticamente)
-                window.open(cartResponseData.data.cart_url, '_blank');
-            } else {
-                console.error('❌ Error generando URL del carrito:', cartResponseData);
-                mostrarNotificacion('❌ Error: ' + (cartResponseData.error || 'Error desconocido'), 'error');
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
+            if (modal) {
+                modal.hide();
             }
+            
+            // Enviar al carrito por formulario POST (sin URL larga ni popup).
+            // Si estamos en iframe, target _parent hace que la página principal navegue al carrito.
+            enviarAlCarritoPorFormulario(items, storefrontUrl);
             
             // Mostrar productos sin stock si los hay
             if (data.data.productos_sin_stock && data.data.productos_sin_stock.length > 0) {

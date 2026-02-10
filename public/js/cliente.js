@@ -915,6 +915,49 @@ function mostrarInfoSesion() {
     mostrarNotificacion(mensaje, 'info', 10000);
 }
 
+// Envía items al carrito: en iframe usa postMessage para que la página principal llame a /cart/add.js;
+// si no, usa formulario (1 ítem) o URL /cart/... según cantidad.
+function enviarAlCarritoPorFormulario(items, storefrontUrl) {
+    if (!items || !items.length || !storefrontUrl) return;
+    var isIframe = window !== window.top;
+    if (isIframe) {
+        var payload = {
+            type: 'CART_ADD_ITEMS',
+            items: items.map(function (it) { return { id: it.variant_id, quantity: it.quantity || 1 }; }),
+            storefront_url: storefrontUrl
+        };
+        console.log('[Listas] Enviando CART_ADD_ITEMS al parent:', payload.items.length, 'items');
+        window.parent.postMessage(payload, '*');
+        if (window.top !== window.parent) {
+            console.log('[Listas] Enviando CART_ADD_ITEMS al top');
+            window.top.postMessage(payload, '*');
+        }
+        return;
+    }
+    if (items.length === 1) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = storefrontUrl.replace(/\/$/, '') + '/cart/add';
+        form.target = '_self';
+        form.style.display = 'none';
+        var idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'id';
+        idInput.value = items[0].variant_id;
+        form.appendChild(idInput);
+        var qtyInput = document.createElement('input');
+        qtyInput.type = 'hidden';
+        qtyInput.name = 'quantity';
+        qtyInput.value = items[0].quantity || 1;
+        form.appendChild(qtyInput);
+        document.body.appendChild(form);
+        form.submit();
+        return;
+    }
+    var cartPart = items.slice(0, 50).map(function (it) { return it.variant_id + ':' + (it.quantity || 1); }).join(',');
+    window.location.href = storefrontUrl.replace(/\/$/, '') + '/cart/' + cartPart;
+}
+
 // Cargar lista personalizada al carrito
 async function cargarListaAlCarrito() {
     console.log('🚀 FUNCIÓN cargarListaAlCarrito EJECUTÁNDOSE');
@@ -1002,41 +1045,15 @@ async function cargarListaAlCarrito() {
         
         if (data.success && data.data.items && data.data.items.length > 0) {
             console.log('✅ Respuesta exitosa del servidor:', data);
-            
-            // Agregar productos al carrito usando la API de Cart de Shopify
-            // Esto respeta las cookies y sincroniza el carrito correctamente
             const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
-            const cartUrl = data.data.cart_url || 'https://bichoto.myshopify.com/cart';
+            const items = data.data.items;
             
-            console.log('🛒 Agregando productos al carrito de Shopify...');
-            mostrarNotificacion(`🛒 Agregando ${data.data.items.length} productos al carrito...`, 'info');
+            console.log('🛒 Enviando ' + items.length + ' productos al carrito por formulario...');
+            mostrarNotificacion(`✅ ${items.length} productos listos. Redirigiendo al carrito...`, 'success');
             
-            // Usar URL directa del carrito (método recomendado por Shopify)
-            // Esto sincroniza automáticamente el carrito y funciona sin problemas de CORS
-            const cartResponse = await fetch('/api/shopify/carrito/agregar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    items: data.data.items
-                })
-            });
-            
-            const cartResponseData = await cartResponse.json();
-            
-            if (cartResponse.ok && cartResponseData.success) {
-                console.log('✅ URL del carrito generada:', cartResponseData.data.cart_url);
-                
-                mostrarNotificacion(`✅ ${data.data.items.length} productos agregados al carrito exitosamente!`, 'success');
-                
-                // Redirigir al carrito (Shopify agregará los productos automáticamente)
-                window.location.href = cartResponseData.data.cart_url;
-            } else {
-                console.error('❌ Error generando URL del carrito:', cartResponseData);
-                mostrarNotificacion('❌ Error: ' + (cartResponseData.error || 'Error desconocido'), 'error');
-            }
+            // Enviar al carrito por formulario POST (sin URL larga ni popup).
+            // Si estamos en iframe, target _parent hace que la página principal navegue al carrito.
+            enviarAlCarritoPorFormulario(items, storefrontUrl);
         } else if (data.success && (!data.data.items || data.data.items.length === 0)) {
             mostrarNotificacion('⚠️ No hay productos válidos para agregar al carrito', 'warning');
         } else {

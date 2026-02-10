@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test: parent con listener de carrito</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    .log { background: #f0f0f0; padding: 0.5rem; margin: 0.5rem 0; font-size: 12px; max-height: 200px; overflow: auto; }
+    iframe { width: 100%; height: 70vh; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>Test: página “parent” con listener de carrito</h1>
+  <p>Esta página simula la página de bichoto.cl: tiene el script que escucha <code>CART_ADD_ITEMS</code> y un iframe con listas. Al usar “Cargar al carrito” en el iframe, aquí debería aparecer el log.</p>
+  <p><strong>Log de mensajes recibidos:</strong></p>
+  <div id="log" class="log"></div>
+  <iframe id="listas" src="/" title="Listas"></iframe>
+
+  <script>
+    (function() {
+      var logEl = document.getElementById('log');
+      function log(msg) {
+        var line = document.createElement('div');
+        line.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      log('Script del parent cargado. Esperando CART_ADD_ITEMS...');
+      window.addEventListener('message', function(e) {
+        if (!e.data || e.data.type !== 'CART_ADD_ITEMS') return;
+        var items = e.data.items || [];
+        log('CART_ADD_ITEMS recibido: ' + items.length + ' items. (En bichoto.cl aquí se llamaría /cart/add.js y se redirigiría a /cart)');
+      });
+    })();
+  </script>
+  <!-- En bichoto.cl hay que cargar: <script src="https://listas.bichoto.cl/cart-listener.js"></script> -->
+  <!-- Aquí no lo cargamos para no redirigir a /cart (este dominio no es la tienda). -->
+</body>
+</html>
