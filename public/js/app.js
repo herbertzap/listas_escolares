@@ -14,37 +14,10 @@ let currentPage = 1;
 let itemsPerPage = 10;
 let totalPages = 1;
 let totalItems = 0;
-// Variable para restaurar botones después de confirmación del parent
-let botonCarritoPendiente = null; // { button, originalText }
 
 // Inicialización cuando se carga la página
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Sistema de Listas Escolares iniciado');
-    
-    // Escuchar confirmaciones del parent cuando se agregan productos al carrito
-    window.addEventListener('message', function(e) {
-        if (!e.data || !e.data.type) return;
-        
-        if (e.data.type === 'CART_ADD_SUCCESS') {
-            console.log('[Listas] Confirmación del parent: productos agregados al carrito');
-            mostrarNotificacion(`✅ ${e.data.items_added || 0} productos agregados al carrito exitosamente!`, 'success');
-            // Restaurar botón si estaba pendiente
-            if (botonCarritoPendiente && botonCarritoPendiente.button) {
-                botonCarritoPendiente.button.innerHTML = botonCarritoPendiente.originalText;
-                botonCarritoPendiente.button.disabled = false;
-                botonCarritoPendiente = null;
-            }
-        } else if (e.data.type === 'CART_ADD_ERROR') {
-            console.error('[Listas] Error del parent:', e.data.error);
-            mostrarNotificacion('❌ Error agregando al carrito: ' + (e.data.error || 'Error desconocido'), 'error');
-            // Restaurar botón si estaba pendiente
-            if (botonCarritoPendiente && botonCarritoPendiente.button) {
-                botonCarritoPendiente.button.innerHTML = botonCarritoPendiente.originalText;
-                botonCarritoPendiente.button.disabled = false;
-                botonCarritoPendiente = null;
-            }
-        }
-    });
     
     // Cargar datos iniciales
     cargarRegiones();
@@ -3788,7 +3761,7 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
             const storefrontUrl = data.data.storefront_url || 'https://bichoto.myshopify.com';
             const items = data.data.items;
             
-            mostrarNotificacion(`🛒 Agregando ${data.data.productos_agregados} productos al carrito...`, 'info');
+            mostrarNotificacion(`✅ ${data.data.productos_agregados} productos listos. Redirigiendo al carrito...`, 'success');
             
             // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalVerLista'));
@@ -3796,21 +3769,9 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
                 modal.hide();
             }
             
-            // Si estamos en iframe, guardar referencia al botón para restaurarlo cuando llegue la confirmación
-            var isIframe = window !== window.top;
-            if (isIframe && button && originalText) {
-                botonCarritoPendiente = { button: button, originalText: originalText };
-            }
-            
             // Enviar al carrito por formulario POST (sin URL larga ni popup).
             // Si estamos en iframe, target _parent hace que la página principal navegue al carrito.
             enviarAlCarritoPorFormulario(items, storefrontUrl);
-            
-            // Si NO estamos en iframe, restaurar botón inmediatamente (redirección ocurre)
-            if (!isIframe && button && originalText) {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
             
             // Mostrar productos sin stock si los hay
             if (data.data.productos_sin_stock && data.data.productos_sin_stock.length > 0) {
@@ -3819,22 +3780,13 @@ async function cargarListaCompletaAlCarrito(listaId, buttonElement = null) {
             }
         } else if (data.success && (!data.data.items || data.data.items.length === 0)) {
             mostrarNotificacion('⚠️ No hay productos válidos para agregar al carrito. Verifica el stock disponible.', 'warning');
-            // Restaurar botón
-            if (button && originalText) {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
         } else {
             mostrarNotificacion('Error cargando lista al carrito: ' + (data.error || 'Error desconocido'), 'error');
-            // Restaurar botón
-            if (button && originalText) {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
         }
     } catch (error) {
         console.error('Error cargando lista al carrito:', error);
         mostrarNotificacion('Error de conexión al cargar lista al carrito', 'error');
+    } finally {
         // Restaurar botón
         const button = buttonElement || (event && event.target) || document.querySelector(`button[onclick*="cargarListaCompletaAlCarrito(${listaId})"]`);
         if (button) {
