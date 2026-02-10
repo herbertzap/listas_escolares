@@ -8,6 +8,8 @@ let productosEliminados = new Set();
 // Variable para almacenar variantes seleccionadas antes de agregar producto
 let variantesSeleccionadas = {}; // { productoId: { variant_id, precio, nombre_variante } }
 // currentListaId está definido en app.js
+// Variable para restaurar botones después de confirmación del parent
+let botonCarritoPendiente = null; // { button, originalText }
 
 // Inicializar sistema de listas personalizadas
 function inicializarSistemaListas() {
@@ -1049,23 +1051,50 @@ async function cargarListaAlCarrito() {
             const items = data.data.items;
             
             console.log('🛒 Enviando ' + items.length + ' productos al carrito por formulario...');
-            mostrarNotificacion(`✅ ${items.length} productos listos. Redirigiendo al carrito...`, 'success');
+            mostrarNotificacion(`🛒 Agregando ${items.length} productos al carrito...`, 'info');
+            
+            // Si estamos en iframe, guardar referencia al botón para restaurarlo cuando llegue la confirmación
+            var isIframe = window !== window.top;
+            if (isIframe && btnCarrito && originalText) {
+                botonCarritoPendiente = { button: btnCarrito, originalText: originalText };
+            }
             
             // Enviar al carrito por formulario POST (sin URL larga ni popup).
             // Si estamos en iframe, target _parent hace que la página principal navegue al carrito.
             enviarAlCarritoPorFormulario(items, storefrontUrl);
+            
+            // Si NO estamos en iframe, restaurar botón inmediatamente (redirección ocurre)
+            if (!isIframe && btnCarrito && originalText) {
+                btnCarrito.innerHTML = originalText;
+                btnCarrito.disabled = false;
+                btnCarrito.classList.remove('btn-secondary');
+                btnCarrito.classList.add('btn-primary');
+            }
         } else if (data.success && (!data.data.items || data.data.items.length === 0)) {
             mostrarNotificacion('⚠️ No hay productos válidos para agregar al carrito', 'warning');
+            // Restaurar botón
+            if (btnCarrito && originalText) {
+                btnCarrito.innerHTML = originalText;
+                btnCarrito.disabled = false;
+                btnCarrito.classList.remove('btn-secondary');
+                btnCarrito.classList.add('btn-primary');
+            }
         } else {
             console.error('Error agregando lista al carrito:', data.error);
             mostrarNotificacion('❌ No se pudieron agregar productos al carrito: ' + (data.error || 'Error desconocido'), 'error');
+            // Restaurar botón
+            if (btnCarrito && originalText) {
+                btnCarrito.innerHTML = originalText;
+                btnCarrito.disabled = false;
+                btnCarrito.classList.remove('btn-secondary');
+                btnCarrito.classList.add('btn-primary');
+            }
         }
         
     } catch (error) {
         console.error('Error cargando lista al carrito:', error);
         mostrarNotificacion('Error de conexión al cargar lista al carrito', 'error');
-    } finally {
-        // Restaurar botón siempre al final
+        // Restaurar botón
         if (btnCarrito && originalText) {
             btnCarrito.innerHTML = originalText;
             btnCarrito.disabled = false;
@@ -1137,6 +1166,35 @@ function mostrarResumenCambios() {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     inicializarSistemaListas();
+    
+    // Escuchar confirmaciones del parent cuando se agregan productos al carrito
+    window.addEventListener('message', function(e) {
+        if (!e.data || !e.data.type) return;
+        
+        if (e.data.type === 'CART_ADD_SUCCESS') {
+            console.log('[Listas] Confirmación del parent: productos agregados al carrito');
+            mostrarNotificacion(`✅ ${e.data.items_added || 0} productos agregados al carrito exitosamente!`, 'success');
+            // Restaurar botón si estaba pendiente
+            if (botonCarritoPendiente && botonCarritoPendiente.button) {
+                botonCarritoPendiente.button.innerHTML = botonCarritoPendiente.originalText;
+                botonCarritoPendiente.button.disabled = false;
+                botonCarritoPendiente.button.classList.remove('btn-secondary');
+                botonCarritoPendiente.button.classList.add('btn-primary');
+                botonCarritoPendiente = null;
+            }
+        } else if (e.data.type === 'CART_ADD_ERROR') {
+            console.error('[Listas] Error del parent:', e.data.error);
+            mostrarNotificacion('❌ Error agregando al carrito: ' + (e.data.error || 'Error desconocido'), 'error');
+            // Restaurar botón si estaba pendiente
+            if (botonCarritoPendiente && botonCarritoPendiente.button) {
+                botonCarritoPendiente.button.innerHTML = botonCarritoPendiente.originalText;
+                botonCarritoPendiente.button.disabled = false;
+                botonCarritoPendiente.button.classList.remove('btn-secondary');
+                botonCarritoPendiente.button.classList.add('btn-primary');
+                botonCarritoPendiente = null;
+            }
+        }
+    });
     
     // Configurar event listener para el buscador de productos
     const buscadorInput = document.getElementById('buscador-productos-input');
