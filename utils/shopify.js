@@ -169,7 +169,7 @@ class ShopifyAPI {
       if (isNaN(id)) {
         throw new Error(`ID de producto inválido: ${productId}`);
       }
-
+      
       // Verificar cache
       if (useCache && this.productCache.has(id)) {
         const cached = this.productCache.get(id);
@@ -183,13 +183,13 @@ class ShopifyAPI {
 
       // Obtener producto con retry y rate limiting
       const product = await this.retryWithBackoff(async () => {
-        const response = await axios.get(`${this.shopUrl}/admin/api/2023-10/products/${id}.json`, {
-          headers: {
-            'X-Shopify-Access-Token': this.accessToken,
-            'Content-Type': 'application/json'
-          }
-        });
-        return response.data.product;
+      const response = await axios.get(`${this.shopUrl}/admin/api/2023-10/products/${id}.json`, {
+        headers: {
+          'X-Shopify-Access-Token': this.accessToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data.product;
       });
 
       // Guardar en cache

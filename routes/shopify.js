@@ -876,17 +876,30 @@ router.post('/carrito/agregar', async (req, res) => {
     }
 
     const shopDomain = process.env.SHOPIFY_SHOP_URL.replace('https://', '').replace('.myshopify.com', '');
-    const cartAddUrl = `https://${shopDomain}.myshopify.com/cart/add.js`;
 
     console.log(`🛒 Preparando ${items.length} items para el carrito de Shopify...`);
 
-    // Generar URL directa del carrito con los productos
-    // Este es el método recomendado por Shopify para agregar productos desde fuera de su dominio
-    // Funciona sin problemas de CORS ni cookies, y sincroniza automáticamente el carrito
-    const cartItems = items.map(item => `${item.variant_id}:${item.quantity}`).join(',');
-    const cartUrl = `https://${shopDomain}.myshopify.com/cart/${cartItems}`;
+    // Generar URL usando /cart/add con múltiples items.
+    // A diferencia de /cart/{items}, esta ruta AGREGA productos al carrito existente
+    // en lugar de reemplazarlo completo, permitiendo enviar varias listas en distintos envíos.
+    const queryParts = [];
+    items.forEach((item, index) => {
+      if (!item || !item.variant_id || !item.quantity) return;
+      queryParts.push(`items[${index}][id]=${encodeURIComponent(item.variant_id)}`);
+      queryParts.push(`items[${index}][quantity]=${encodeURIComponent(item.quantity)}`);
+    });
 
-    console.log(`✅ URL del carrito generada: ${cartUrl}`);
+    if (queryParts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No hay items válidos para agregar al carrito'
+      });
+    }
+
+    const queryString = queryParts.join('&');
+    const cartUrl = `https://${shopDomain}.myshopify.com/cart/add?${queryString}`;
+
+    console.log(`✅ URL de /cart/add generada: ${cartUrl}`);
 
     // Retornar la URL del carrito para que el frontend redirija al usuario
     // Shopify manejará automáticamente la adición de productos al carrito del usuario
@@ -900,7 +913,7 @@ router.post('/carrito/agregar', async (req, res) => {
           quantity: item.quantity
         }))
       },
-      message: `${items.length} productos preparados para el carrito`
+      message: `${items.length} productos preparados para el carrito (modo agregar, no reemplazar)`
     });
 
   } catch (error) {

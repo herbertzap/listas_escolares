@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../utils/database');
 const { requireAuth } = require('../utils/auth-simple');
+const { obtenerTodasLasRegiones, obtenerComunasDeRegion } = require('../utils/chile-data');
 
 // Función helper para crear condiciones de búsqueda flexibles
 function createSearchConditions(field, value) {
@@ -248,7 +249,6 @@ router.get('/comunas', async (req, res) => {
 router.get('/chile-comunas', async (req, res) => {
   try {
     const { region } = req.query;
-    const chileRegions = require('../data/chile-regions');
     
     if (!region) {
       return res.json({ 
@@ -257,7 +257,47 @@ router.get('/chile-comunas', async (req, res) => {
       });
     }
     
-    const comunas = chileRegions[region] || [];
+    console.log('🔍 Buscando comunas para región:', region);
+    
+    // Buscar la región por nombre
+    const regiones = obtenerTodasLasRegiones();
+    console.log('📋 Regiones disponibles:', regiones.map(r => r.nombre));
+    
+    // Búsqueda simple por nombre exacto
+    let regionEncontrada = regiones.find(r => r.nombre === region);
+    
+    if (regionEncontrada) {
+      console.log('✅ Región encontrada por nombre exacto:', regionEncontrada.nombre);
+    } else {
+      // Búsqueda por nombre normalizado (sin acentos)
+      const regionNormalizada = region.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      console.log('🔧 Búsqueda normalizada:', regionNormalizada);
+      
+      regionEncontrada = regiones.find(r => {
+        const nombreNormalizado = r.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return nombreNormalizado === regionNormalizada;
+      });
+      
+      if (regionEncontrada) {
+        console.log('✅ Región encontrada por normalización:', regionEncontrada.nombre);
+      }
+    }
+    
+    if (!regionEncontrada) {
+      console.log('❌ Región no encontrada. Regiones disponibles:');
+      regiones.forEach(r => {
+        console.log(`  - ${r.nombre}`);
+      });
+      
+      return res.json({ 
+        success: true, 
+        data: [] 
+      });
+    }
+    
+    // Obtener las comunas de la región encontrada
+    const comunas = obtenerComunasDeRegion(regionEncontrada.id);
+    console.log('📊 Comunas encontradas:', comunas.length);
     
     res.json({ 
       success: true, 
@@ -452,9 +492,6 @@ router.get('/todas-comunas', async (req, res) => {
     const { region } = req.query;
     console.log('🔍 API /todas-comunas - región:', region);
     
-    const chileRegions = require('../data/chile-regions');
-    console.log('🔍 API /todas-comunas - chileRegions cargado:', !!chileRegions);
-    
     if (!region) {
       console.log('🔍 API /todas-comunas - No hay región');
       return res.json({ 
@@ -463,7 +500,32 @@ router.get('/todas-comunas', async (req, res) => {
       });
     }
     
-    const comunas = chileRegions[region] || [];
+    // Buscar la región por nombre
+    const regiones = obtenerTodasLasRegiones();
+    
+    // Búsqueda simple por nombre exacto
+    let regionEncontrada = regiones.find(r => r.nombre === region);
+    
+    if (!regionEncontrada) {
+      // Búsqueda por nombre normalizado (sin acentos)
+      const regionNormalizada = region.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      
+      regionEncontrada = regiones.find(r => {
+        const nombreNormalizado = r.nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return nombreNormalizado === regionNormalizada;
+      });
+    }
+    
+    if (!regionEncontrada) {
+      console.log('🔍 API /todas-comunas - Región no encontrada');
+      return res.json({ 
+        success: true, 
+        data: [] 
+      });
+    }
+    
+    // Obtener las comunas de la región encontrada
+    const comunas = obtenerComunasDeRegion(regionEncontrada.id);
     console.log('🔍 API /todas-comunas - comunas encontradas:', comunas.length);
     
     res.json({ 
